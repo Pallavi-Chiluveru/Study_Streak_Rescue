@@ -10,7 +10,7 @@ Study Streak Rescue is an AI-powered self-healing productivity and catch-up plan
 
 * **⚡ RESCUE MY PLAN (Core Differentiator)**: Automatically rebalances overdue and remaining tasks across remaining deadline days without ever modifying completed tasks.
 * **⚡ I Have Less Time Today**: Quick adaptation feature to trim today's schedule on busy days and push non-essential tasks to tomorrow.
-* **🤖 AI-Powered Task Breakdown (Gemini AI)**: Generates sequential, actionable micro-tasks from any goal title, description, and topics.
+* **🤖 AI-Powered Task Breakdown (Groq AI)**: Generates sequential, actionable micro-tasks from any goal title, description, and topics.
 * **🛡️ Mathematical Feasibility Engine**: Compares estimated work hours against available daily study time to prevent impossible schedules.
 * **❤️ Live Plan Health Score**: Dynamic health calculation (0–100%) tracking completion rate, missed tasks, and study pace.
 * **🔥 Gamified Momentum & Achievements**: Track study streaks, earn +50 XP per task completed, and unlock achievement badges.
@@ -35,7 +35,7 @@ Study Streak Rescue is an AI-powered self-healing productivity and catch-up plan
 * **Node.js** & **Express.js**
 * **MongoDB** & **Mongoose**
 * **JWT** Authentication & **bcryptjs**
-* **@google/generative-ai** (Gemini 1.5 Flash API with deterministic fallback)
+* **groq-sdk** (centralized Groq model configuration with deterministic fallback)
 
 ---
 
@@ -51,7 +51,7 @@ Hacthon2/
 │   ├── models/                   # User, Plan, Task Schemas
 │   ├── routes/                   # API Endpoints
 │   ├── services/
-│   │   ├── geminiService.js      # Gemini AI Generator & Fallback
+│   │   ├── groqService.js        # Groq AI Generator & Fallback
 │   │   ├── feasibilityService.js # Feasibility Math Engine
 │   │   ├── healthService.js     # Health Score Calculation
 │   │   ├── schedulingService.js # Task Distribution Engine
@@ -96,10 +96,11 @@ Create a `.env` file in `backend/`:
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/studystreakrescue
 JWT_SECRET=super_secret_lightning_key_2026
-GEMINI_API_KEY=your_gemini_api_key_here
-CLIENT_URL=http://localhost:5173
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+CLIENT_URLS=https://your-frontend-domain.example,http://localhost:5173
 ```
-*Note: If `GEMINI_API_KEY` is not provided, the backend automatically uses an intelligent deterministic breakdown generator so the app works seamlessly out of the box.*
+*Note: If `GROQ_API_KEY` is not provided or the provider fails, the backend uses an explicit deterministic fallback breakdown so the app remains usable.*
 
 Start backend server:
 ```bash
@@ -114,7 +115,17 @@ npm install
 ```
 Create a `.env` file in `frontend/`:
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=https://study-streak-rescue.onrender.com/api
+
+For local development, use `http://localhost:5000/api` instead.
+
+### Production deployment
+
+For Render, set the backend service root directory to `backend`, use `npm install` as the build command, and `npm start` as the start command. Add `GROQ_API_KEY`, `GROQ_MODEL`, `MONGODB_URI`, `JWT_SECRET`, and `CLIENT_URLS` in the Render environment. `CLIENT_URLS` must include the exact deployed frontend origin, for example `https://your-app.vercel.app`.
+
+For Vercel, set the frontend root directory to `frontend` and add `VITE_API_URL=https://study-streak-rescue.onrender.com/api`. Rebuild and redeploy the frontend after changing this variable because Vite embeds it at build time.
+
+The production registration endpoint is `POST https://study-streak-rescue.onrender.com/api/auth/register`.
 ```
 
 Start Vite dev server:
@@ -143,6 +154,7 @@ npm run dev
 | `POST` | `/api/tasks/simulate-missed` | **Demo Mode: Simulate missed tasks for testing** |
 | `GET` | `/api/dashboard` | Main dashboard stats & active plans |
 | `GET` | `/api/analytics` | Analytics summary & chart data |
+| `GET` | `/api/health` | Backend health check |
 
 ---
 

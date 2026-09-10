@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+const normalizeApiBaseUrl = (configuredUrl) => {
+  const value = (configuredUrl || '/api').trim().replace(/\/+$/, '');
+
+  // Accept either the API origin or an API URL, but always expose one /api prefix.
+  if (value === '/api' || value.endsWith('/api')) {
+    return value.replace(/(?:\/api)+$/, '/api');
+  }
+
+  return `${value}/api`;
+};
+
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api'
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 });
 
 // Request interceptor to attach JWT bearer token
