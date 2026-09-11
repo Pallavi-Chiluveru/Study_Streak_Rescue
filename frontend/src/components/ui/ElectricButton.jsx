@@ -1,5 +1,4 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
 
 const ElectricButton = ({
   children,
@@ -7,7 +6,7 @@ const ElectricButton = ({
   size = 'md',
   fullWidth = false,
   subtitle,
-  icon: Icon = Zap,
+  icon: Icon = null,
   className = '',
   disabled = false,
   onClick,
@@ -28,7 +27,8 @@ const ElectricButton = ({
     secondary: 'bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700 hover:border-slate-600 shadow-md',
     success: 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-900/30 border border-emerald-400/30',
     danger: 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-lg shadow-red-900/30 border border-red-400/30',
-    rescue: 'bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 hover:from-red-500 hover:via-orange-500 hover:to-amber-400 text-white shadow-2xl shadow-orange-900/30 hover:shadow-orange-600/50 border-2 border-orange-400/60 animate-rescue-pulse'
+    rescue: 'bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 hover:from-red-500 hover:via-orange-500 hover:to-amber-400 text-white shadow-2xl shadow-orange-900/30 hover:shadow-orange-600/50 border-2 border-orange-400/60 animate-rescue-pulse',
+    rescueCompact: 'bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 hover:from-red-500 hover:via-orange-600 hover:to-amber-500 text-white text-sm font-semibold shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 border border-orange-400/60'
   };
 
   return (
@@ -44,7 +44,7 @@ const ElectricButton = ({
 
       <div className="relative z-10 flex flex-col items-center justify-center text-center">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className={`w-4 h-4 ${variant === 'rescue' ? 'w-6 h-6 text-yellow-300 animate-lightning' : ''}`} />}
+          {Icon && <Icon className="h-4 w-4 shrink-0" />}
           <span>{children}</span>
         </div>
         {subtitle && (

@@ -37,6 +37,39 @@ const userSchema = new mongoose.Schema({
   lastActiveDate: {
     type: Date,
     default: null
+  },
+  preferences: {
+    focusSessionMinutes: { type: Number, default: 45 },
+    defaultDailyMinutes: { type: Number, default: 120 },
+    preferredStudyTime: { type: String, default: 'evening' },
+    defaultDifficulty: { type: String, default: 'medium' },
+    autoStartFocusTimer: { type: Boolean, default: false },
+    autoDetectMissed: { type: Boolean, default: true },
+    rescueSuggestions: { type: Boolean, default: true },
+    rescueThreshold: { type: Number, default: 60 },
+    preserveLowPriority: { type: Boolean, default: true },
+    notifications: {
+      dailyReminder: { type: Boolean, default: true },
+      missedTasks: { type: Boolean, default: true },
+      planHealth: { type: Boolean, default: true },
+      streak: { type: Boolean, default: true },
+      achievements: { type: Boolean, default: true },
+      rescueComplete: { type: Boolean, default: true }
+    },
+    planning: {
+      sessionLengthMinutes: { type: Number, default: 45 },
+      dailyAvailabilityMinutes: { type: Number, default: 120 },
+      difficulty: { type: String, default: 'medium' },
+      priority: { type: String, default: 'medium' },
+      allowBusyDays: { type: Boolean, default: true },
+      unavailableDays: { type: [String], default: [] }
+    },
+    gamification: {
+      showXP: { type: Boolean, default: true },
+      showStreak: { type: Boolean, default: true },
+      achievementAnimations: { type: Boolean, default: true },
+      completionAnimations: { type: Boolean, default: true }
+    }
   }
 }, {
   timestamps: true

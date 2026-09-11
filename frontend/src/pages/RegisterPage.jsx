@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock } from 'lucide-react';
+import { User, Mail, Lock, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ElectricButton from '../components/ui/ElectricButton';
@@ -119,6 +119,7 @@ const RegisterPage = () => {
               variant="rescue"
               size="lg"
               fullWidth
+              icon={UserPlus}
               disabled={loading}
               className="mt-6"
             >

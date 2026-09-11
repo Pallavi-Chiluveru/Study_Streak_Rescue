@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, CheckSquare, Clock } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
-import ElectricCard from '../components/ui/ElectricCard';
-import ElectricButton from '../components/ui/ElectricButton';
-import TaskCard from '../components/tasks/TaskCard';
 import FocusTimer from '../components/tasks/FocusTimer';
 import EmptyState from '../components/ui/EmptyState';
+import ScheduleDateGroup from '../components/schedule/ScheduleDateGroup';
+import { groupTasksByScheduledDate } from '../utils/dateUtils';
 
 const TodayPage = () => {
   const navigate = useNavigate();
@@ -54,6 +53,7 @@ const TodayPage = () => {
   }
 
   const tasks = todayData?.tasks || [];
+  const scheduledGroups = groupTasksByScheduledDate(tasks);
   const completedCount = todayData?.completedCount || 0;
   const remainingMinutes = todayData?.remainingMinutes || 0;
 
@@ -61,14 +61,14 @@ const TodayPage = () => {
     <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-300 text-xs font-semibold mb-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 text-orange-700 dark:text-orange-300 text-xs font-semibold mb-1">
             <Zap className="w-3.5 h-3.5 text-orange-400 animate-lightning" />
             TODAY FOCUS MODE
           </div>
-          <h2 className="text-2xl font-extrabold text-white">
-            Today's Schedule ({tasks.length} Items)
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+            Study Timeline ({tasks.length} Items)
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             {completedCount} Completed • {Math.floor(remainingMinutes / 60)}h {remainingMinutes % 60}m Remaining
           </p>
         </div>
@@ -82,13 +82,14 @@ const TodayPage = () => {
           onAction={() => navigate('/plans/new')}
         />
       ) : (
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task._id}
-              task={task}
-              onComplete={(t) => handleTaskComplete(t)}
-              onOpenTimer={(t) => setTimerTask(t)}
+        <div>
+          {scheduledGroups.map((group) => (
+            <ScheduleDateGroup
+              key={group.key}
+              date={group.date}
+              tasks={group.tasks}
+              onComplete={(task) => handleTaskComplete(task)}
+              onOpenTimer={(task) => setTimerTask(task)}
             />
           ))}
         </div>

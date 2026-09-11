@@ -100,14 +100,14 @@ const DashboardPage = () => {
   return (
     <div className="space-y-8 pb-12">
       {/* DEMO MODE CONTROL (Developer / Evaluator Quick Rescue Simulator) */}
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-orange-50/70 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-xs">
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-xs">
         <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
           <Zap className="w-4 h-4 text-orange-500 animate-lightning" />
           <span className="font-mono">Demo Mode Control: Simulate slipping schedule to test ⚡ RESCUE MY PLAN instantly</span>
         </div>
         <button
           onClick={handleSimulateMissed}
-          className="px-3 py-1 rounded-lg bg-red-950/60 border border-red-500/50 text-red-300 hover:bg-red-900/60 font-semibold transition-colors"
+          className="px-3 py-1 rounded-lg bg-red-500 dark:bg-red-950/60 border border-red-600 dark:border-red-500/50 text-white dark:text-red-300 hover:bg-red-600 dark:hover:bg-red-900/60 font-semibold transition-colors"
         >
           ⚠ Simulate Missed Tasks
         </button>
@@ -118,14 +118,14 @@ const DashboardPage = () => {
         {/* CURRENT STREAK CARD */}
         <ElectricCard className="relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Current Streak</span>
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-400">Current Streak</span>
             <Flame className={`w-5 h-5 ${stats?.streakDays > 3 ? 'text-orange-400 fill-orange-400 animate-bounce' : 'text-orange-400'}`} />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-white">{stats?.streakDays || 0}</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-white">{stats?.streakDays || 0}</span>
             <span className="text-xs font-semibold text-orange-400">Days</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">
             {stats?.streakDays > 0 ? "You've studied consistently!" : 'Complete a task today to start your streak.'}
           </p>
         </ElectricCard>
@@ -133,31 +133,31 @@ const DashboardPage = () => {
         {/* XP CARD */}
         <ElectricCard>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Total XP</span>
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-400">Total XP</span>
             <Zap className="w-5 h-5 text-orange-500 animate-lightning" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-amber-500">{stats?.xp || 0}</span>
             <span className="text-xs font-semibold text-orange-600 dark:text-orange-300">XP</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">+50 XP awarded for every task completed.</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">+50 XP awarded for every task completed.</p>
         </ElectricCard>
 
         {/* PLAN HEALTH CARD */}
         <ElectricCard rescueAlert={stats?.avgHealthScore < 50}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Avg Plan Health</span>
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-400">Avg Plan Health</span>
             <Heart className={`w-5 h-5 ${stats?.avgHealthScore < 50 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`} />
           </div>
           <div className="flex items-baseline gap-2">
             <span className={`text-3xl font-extrabold ${stats?.avgHealthScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
               {stats?.avgHealthScore || 100}%
             </span>
-            <span className="text-xs font-semibold text-slate-400">
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
               {stats?.avgHealthScore >= 90 ? 'Excellent' : stats?.avgHealthScore >= 70 ? 'On Track' : 'Slipping'}
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">
             {stats?.avgHealthScore < 50 ? '⚠ Plan slipping! Click Rescue Now.' : 'Pace is healthy.'}
           </p>
         </ElectricCard>
@@ -165,13 +165,13 @@ const DashboardPage = () => {
         {/* FOCUS TIME CARD */}
         <ElectricCard>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Focus Time</span>
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-400">Focus Time</span>
             <Clock className="w-5 h-5 text-orange-500" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-white">{stats?.focusHoursFormatted || '0h 0m'}</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-white">{stats?.focusHoursFormatted || '0h 0m'}</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Total time spent in deep study mode.</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">Total time spent in deep study mode.</p>
         </ElectricCard>
       </div>
 
@@ -192,9 +192,10 @@ const DashboardPage = () => {
             <ElectricButton
               variant="secondary"
               size="sm"
+              icon={Clock}
               onClick={() => setAdaptPlanId(activePlans[0]._id)}
             >
-              ⚡ I Have Less Time Today
+              I Have Less Time Today
             </ElectricButton>
           )}
         </div>
@@ -224,11 +225,11 @@ const DashboardPage = () => {
       {/* ACTIVE PLANS OVERVIEW */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Active Study Plans
           </h3>
-          <ElectricButton variant="primary" size="sm" onClick={() => navigate('/plans')}>
-            View All Plans <ArrowRight className="w-4 h-4 ml-1" />
+          <ElectricButton variant="primary" size="sm" icon={ArrowRight} onClick={() => navigate('/plans')}>
+            View All Plans
           </ElectricButton>
         </div>
 
@@ -253,15 +254,15 @@ const DashboardPage = () => {
                     <span className="text-[10px] font-mono text-orange-500 uppercase tracking-wider">
                       {plan.category}
                     </span>
-                    <h4 className="text-base font-bold text-white line-clamp-1">{plan.title}</h4>
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white line-clamp-1">{plan.title}</h4>
                   </div>
                   <PlanHealth score={plan.healthScore} compact />
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-slate-400 font-medium">
+                  <div className="flex justify-between text-xs text-slate-700 dark:text-slate-400 font-medium">
                     <span>Completion</span>
-                    <span className="text-white font-bold">{plan.progressPct}%</span>
+                    <span className="text-slate-900 dark:text-white font-bold">{plan.progressPct}%</span>
                   </div>
                   <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div
@@ -275,13 +276,14 @@ const DashboardPage = () => {
                   <ElectricButton
                     variant="rescue"
                     size="sm"
+                    icon={Zap}
                     fullWidth
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenRescueModal(plan._id);
                     }}
                   >
-                    ⚡ Rescue My Plan
+                    Rescue My Plan
                   </ElectricButton>
                 )}
               </ElectricCard>

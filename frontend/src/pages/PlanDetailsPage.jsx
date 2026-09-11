@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, CheckCircle2, AlertTriangle, Zap, ArrowLeft, Play } from 'lucide-react';
+import { Clock, Zap, ArrowLeft } from 'lucide-react';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import ElectricCard from '../components/ui/ElectricCard';
 import ElectricButton from '../components/ui/ElectricButton';
 import PlanHealth from '../components/ui/PlanHealth';
-import TaskCard from '../components/tasks/TaskCard';
 import FocusTimer from '../components/tasks/FocusTimer';
 import RescueModal from '../components/rescue/RescueModal';
 import QuickAdaptModal from '../components/tasks/QuickAdaptModal';
 import EmptyState from '../components/ui/EmptyState';
+import ScheduleDateGroup from '../components/schedule/ScheduleDateGroup';
+import { groupTasksByScheduledDate } from '../utils/dateUtils';
 
 const PlanDetailsPage = () => {
   const { id } = useParams();
@@ -84,42 +85,7 @@ const PlanDetailsPage = () => {
     .reduce((sum, t) => sum + (t.estimatedMinutes || 45), 0);
   const remainingHoursFormatted = `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`;
 
-  // Group tasks into categories: TODAY, TOMORROW, UPCOMING, COMPLETED, MISSED
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
-
-  const groupedTasks = {
-    today: [],
-    tomorrow: [],
-    upcoming: [],
-    completed: [],
-    missed: []
-  };
-
-  tasks.forEach(t => {
-    if (t.status === 'completed') {
-      groupedTasks.completed.push(t);
-    } else if (t.status === 'missed') {
-      groupedTasks.missed.push(t);
-    } else {
-      const scheduled = new Date(t.scheduledDate);
-      scheduled.setHours(0, 0, 0, 0);
-
-      if (scheduled.getTime() === today.getTime()) {
-        groupedTasks.today.push(t);
-      } else if (scheduled.getTime() === tomorrow.getTime()) {
-        groupedTasks.tomorrow.push(t);
-      } else {
-        groupedTasks.upcoming.push(t);
-      }
-    }
-  });
+  const scheduledGroups = groupTasksByScheduledDate(tasks);
 
   return (
     <div className="space-y-8 pb-12">
@@ -132,13 +98,13 @@ const PlanDetailsPage = () => {
           <ArrowLeft className="w-4 h-4" /> Back to Plans
         </button>
 
-        <div className="flex items-center gap-3">
-          <ElectricButton variant="secondary" size="sm" onClick={() => setShowAdaptModal(true)}>
-            ⚡ I Have Less Time Today
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <ElectricButton variant="secondary" size="sm" icon={Clock} onClick={() => setShowAdaptModal(true)}>
+            I Have Less Time Today
           </ElectricButton>
 
-          <ElectricButton variant="rescue" size="md" onClick={() => setShowRescueModal(true)}>
-            ⚡ RESCUE MY PLAN
+          <ElectricButton variant="rescueCompact" size="md" icon={Zap} onClick={() => setShowRescueModal(true)} className="h-11 min-w-[190px] rounded-xl px-5 whitespace-nowrap">
+            Rescue My Plan
           </ElectricButton>
         </div>
       </div>
@@ -187,104 +153,22 @@ const PlanDetailsPage = () => {
         </div>
       </ElectricCard>
 
-      {/* TASK GROUPS */}
-      <div className="space-y-6">
-        {/* MISSED TASKS SECTION */}
-        {groupedTasks.missed.length > 0 && (
-          <div className="space-y-3 p-5 rounded-2xl border border-red-500/50 bg-red-950/20 backdrop-blur-md animate-rescue-pulse">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-red-300 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce" />
-                MISSED / OVERDUE TASKS ({groupedTasks.missed.length})
-              </h3>
-              <ElectricButton variant="rescue" size="sm" onClick={() => setShowRescueModal(true)}>
-                ⚡ Rescue My Plan Now
-              </ElectricButton>
-            </div>
-            <div className="space-y-2.5">
-              {groupedTasks.missed.map(t => (
-                <TaskCard
-                  key={t._id}
-                  task={t}
-                  onComplete={(task) => handleTaskComplete(task)}
-                  onOpenTimer={(task) => setTimerTask(task)}
-                />
-              ))}
-            </div>
+      {/* CHRONOLOGICAL DATE GROUPS */}
+      <div>
+        {scheduledGroups.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+            No scheduled tasks yet.
           </div>
-        )}
-
-        {/* TODAY TASKS */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-extrabold uppercase tracking-wider text-orange-400 flex items-center gap-2 font-mono">
-            <Zap className="w-4 h-4 text-orange-400 animate-lightning" />
-            TODAY'S SCHEDULE ({groupedTasks.today.length})
-          </h3>
-          {groupedTasks.today.length === 0 ? (
-            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-xs text-slate-400 font-mono">
-              No tasks scheduled for today.
-            </div>
-          ) : (
-            groupedTasks.today.map(t => (
-              <TaskCard
-                key={t._id}
-                task={t}
-                onComplete={(task) => handleTaskComplete(task)}
-                onOpenTimer={(task) => setTimerTask(task)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* TOMORROW TASKS */}
-        {groupedTasks.tomorrow.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-orange-300 flex items-center gap-2 font-mono">
-              <Calendar className="w-4 h-4 text-orange-400" />
-              TOMORROW ({groupedTasks.tomorrow.length})
-            </h3>
-            {groupedTasks.tomorrow.map(t => (
-              <TaskCard
-                key={t._id}
-                task={t}
-                onComplete={(task) => handleTaskComplete(task)}
-                onOpenTimer={(task) => setTimerTask(task)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* UPCOMING TASKS */}
-        {groupedTasks.upcoming.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2 font-mono">
-              UPCOMING ({groupedTasks.upcoming.length})
-            </h3>
-            {groupedTasks.upcoming.map(t => (
-              <TaskCard
-                key={t._id}
-                task={t}
-                onComplete={(task) => handleTaskComplete(task)}
-                onOpenTimer={(task) => setTimerTask(task)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* COMPLETED TASKS */}
-        {groupedTasks.completed.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-2 font-mono">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              COMPLETED WORK ({groupedTasks.completed.length})
-            </h3>
-            {groupedTasks.completed.map(t => (
-              <TaskCard
-                key={t._id}
-                task={t}
-              />
-            ))}
-          </div>
+        ) : (
+          scheduledGroups.map((group) => (
+            <ScheduleDateGroup
+              key={group.key}
+              date={group.date}
+              tasks={group.tasks}
+              onComplete={(task) => handleTaskComplete(task)}
+              onOpenTimer={(task) => setTimerTask(task)}
+            />
+          ))
         )}
       </div>
 

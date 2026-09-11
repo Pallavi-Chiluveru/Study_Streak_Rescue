@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Check, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, ShieldCheck, Clock, Calendar, Tag } from 'lucide-react';
+import { Zap, Check, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, ShieldCheck, Clock, Calendar, Tag, Plus } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
 import ElectricCard from '../ui/ElectricCard';
 import API from '../../services/api';
@@ -139,22 +139,20 @@ const CreatePlanWizard = () => {
               return (
                 <div
                   key={label}
-                  className={`flex items-center gap-2 text-xs font-semibold ${
-                    step === stepNum
-                      ? 'text-orange-400'
-                      : step > stepNum
+                  className={`flex items-center gap-2 text-xs font-semibold ${step === stepNum
+                    ? 'text-orange-400'
+                    : step > stepNum
                       ? 'text-emerald-400'
                       : 'text-slate-600'
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
-                      step === stepNum
-                        ? 'bg-orange-600/30 border-orange-400 text-white shadow-lg shadow-orange-900/40'
-                        : step > stepNum
+                    className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${step === stepNum
+                      ? 'bg-orange-600/30 border-orange-400 text-white shadow-lg shadow-orange-900/40'
+                      : step > stepNum
                         ? 'bg-emerald-500/20 border-emerald-400 text-emerald-400'
                         : 'border-slate-800 bg-slate-900 text-slate-600'
-                    }`}
+                      }`}
                   >
                     {step > stepNum ? <Check className="w-4 h-4" /> : stepNum}
                   </div>
@@ -202,11 +200,10 @@ const CreatePlanWizard = () => {
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                    category === cat
-                      ? 'bg-orange-600/30 border-orange-400 text-white shadow-md'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${category === cat
+                    ? 'bg-orange-600/30 border-orange-400 text-white shadow-md'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
                 >
                   {cat}
                 </button>
@@ -225,9 +222,9 @@ const CreatePlanWizard = () => {
             />
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-slate-800">
-            <ElectricButton variant="primary" onClick={() => setStep(2)}>
-              Next: Add Topics <ArrowRight className="w-4 h-4 ml-1" />
+          <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
+            <ElectricButton variant="primary" size="md" icon={null} onClick={() => setStep(2)} className="h-11 px-5 text-sm">
+              <span>Next: Add Topics</span> <ArrowRight className="h-4 w-4" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -253,7 +250,7 @@ const CreatePlanWizard = () => {
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTopic())}
               className="flex-1 px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-orange-400 text-sm"
             />
-            <ElectricButton variant="secondary" onClick={handleAddTopic}>
+            <ElectricButton variant="secondary" icon={Plus} onClick={handleAddTopic}>
               Add Topic
             </ElectricButton>
           </div>
@@ -280,12 +277,12 @@ const CreatePlanWizard = () => {
             )}
           </div>
 
-          <div className="flex justify-between pt-4 border-t border-slate-800">
-            <ElectricButton variant="secondary" onClick={() => setStep(1)}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back
+          <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(1)} className="h-11 px-5 text-sm">
+              <ArrowLeft className="h-4 w-4" /> <span>Back</span>
             </ElectricButton>
-            <ElectricButton variant="primary" onClick={() => setStep(3)}>
-              Next: Availability <ArrowRight className="w-4 h-4 ml-1" />
+            <ElectricButton variant="primary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm">
+              <span>Next: Availability</span> <ArrowRight className="h-4 w-4" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -346,11 +343,10 @@ const CreatePlanWizard = () => {
                     key={len}
                     type="button"
                     onClick={() => setSessionLength(len)}
-                    className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${
-                      sessionLength === len
-                        ? 'bg-orange-600/30 border-orange-400 text-white shadow-md'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
-                    }`}
+                    className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${sessionLength === len
+                      ? 'bg-orange-600/30 border-orange-400 text-white shadow-md'
+                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
                   >
                     {len} mins
                   </button>
@@ -359,12 +355,12 @@ const CreatePlanWizard = () => {
             </div>
           </div>
 
-          <div className="flex justify-between pt-4 border-t border-slate-800">
-            <ElectricButton variant="secondary" onClick={() => setStep(2)}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back
+          <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(2)} className="h-11 px-5 text-sm">
+              <ArrowLeft className="h-4 w-4" /> <span>Back</span>
             </ElectricButton>
-            <ElectricButton variant="rescue" onClick={handleGeneratePreview}>
-              ⚡ Generate My Rescue-Ready Plan
+            <ElectricButton variant="primary" size="md" icon={null} onClick={handleGeneratePreview} className="h-11 px-5 text-sm whitespace-nowrap">
+              <span>Generate Plan</span> <ArrowRight className="h-4 w-4" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -375,11 +371,10 @@ const CreatePlanWizard = () => {
         <div className="space-y-6">
           {/* Feasibility Check Banner */}
           <div
-            className={`p-6 rounded-2xl border backdrop-blur-md ${
-              previewData.feasibility.isFeasible
-                ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-200 animate-border-flow'
-                : 'bg-amber-950/30 border-amber-500/50 text-amber-200 animate-rescue-pulse'
-            }`}
+            className={`p-6 rounded-2xl border backdrop-blur-md ${previewData.feasibility.isFeasible
+              ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-200 animate-border-flow'
+              : 'bg-amber-950/30 border-amber-500/50 text-amber-200 animate-rescue-pulse'
+              }`}
           >
             <div className="flex items-center gap-3 mb-2">
               {previewData.feasibility.isFeasible ? (
@@ -443,12 +438,12 @@ const CreatePlanWizard = () => {
               ))}
             </div>
 
-            <div className="flex justify-between pt-6 border-t border-slate-800 mt-6">
-              <ElectricButton variant="secondary" onClick={() => setStep(3)}>
-                <ArrowLeft className="w-4 h-4 mr-1" /> Edit Parameters
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-800 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm">
+                <ArrowLeft className="h-4 w-4" /> <span>Edit Parameters</span>
               </ElectricButton>
-              <ElectricButton variant="primary" size="lg" onClick={handleSavePlan} disabled={loading}>
-                {loading ? 'Saving Schedule...' : 'Save & Launch Schedule ⚡'}
+              <ElectricButton variant="primary" size="md" icon={null} onClick={handleSavePlan} disabled={loading} className="h-11 px-5 text-sm whitespace-nowrap">
+                <span>{loading ? 'Saving Schedule...' : 'Save & Launch Schedule'}</span> <ArrowRight className="h-4 w-4" />
               </ElectricButton>
             </div>
           </ElectricCard>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ElectricButton from '../components/ui/ElectricButton';
@@ -83,10 +83,11 @@ const LoginPage = () => {
               variant="primary"
               size="lg"
               fullWidth
+              icon={LogIn}
               disabled={loading}
               className="mt-6"
             >
-              {loading ? 'Signing In...' : 'Log In ⚡'}
+              {loading ? 'Signing In...' : 'Log In'}
             </ElectricButton>
           </form>
 

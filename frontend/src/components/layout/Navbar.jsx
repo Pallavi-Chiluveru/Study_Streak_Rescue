@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
-import { Bell, Flame, Zap, Plus } from 'lucide-react';
+import { Flame, Zap, Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ElectricButton from '../ui/ElectricButton';
 import ThemeToggle from '../ui/ThemeToggle';
+import NotificationButton from './NotificationButton';
+import NotificationDropdown from './NotificationDropdown';
+import ProfileMenu from './ProfileMenu';
 
 const Navbar = ({ onOpenMobileMenu }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-white/85 dark:bg-slate-950/80 backdrop-blur-md transition-colors duration-300">
+    <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/80 shadow-[0_1px_3px_rgba(15,23,42,0.08)] dark:shadow-none backdrop-blur-md transition-colors duration-300">
       <div>
         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           Good Day, {user?.name ? user.name.split(' ')[0] : 'Learner'} 👋
         </h2>
-        <p className="text-xs text-slate-400">Let's keep your study momentum alive.</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">Let's keep your study momentum alive.</p>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Quick Streak Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400 text-xs font-semibold">
-          <Flame className="w-4 h-4 text-orange-400 fill-orange-400 animate-bounce" />
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-orange-200 dark:border-orange-500/30 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-semibold">
+          <Flame className="w-4 h-4 text-orange-500 dark:text-orange-400 fill-orange-400 animate-bounce" />
           <span>{user?.streak || 0} Day Streak</span>
         </div>
 
@@ -42,32 +45,20 @@ const Navbar = ({ onOpenMobileMenu }) => {
           New Plan
         </ElectricButton>
 
-        {/* Notifications Icon */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:text-orange-700 dark:hover:text-orange-400 hover:border-orange-300 dark:hover:border-orange-500/30 transition-all relative"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-orange-400 animate-ping" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-orange-500" />
-          </button>
-
-          {showNotifications && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xl z-50 text-xs">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-white mb-2">
-                <span>Notifications</span>
-                <span className="text-[10px] text-orange-500 font-mono">Live AI Engine</span>
-              </div>
-              <div className="space-y-2">
-                <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-800 dark:text-orange-200">
-                  <p className="font-semibold text-orange-600 dark:text-orange-300">⚡ Adaptive Scheduling Ready</p>
-                  <p className="text-[11px] opacity-80 mt-0.5">If you ever miss a task, click Rescue My Plan to recover instantly.</p>
-                </div>
-              </div>
-              <ThemeToggle />
-            </div>
-          )}
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="relative">
+            <NotificationButton
+              isOpen={activeMenu === 'notifications'}
+              onToggle={() => setActiveMenu((menu) => menu === 'notifications' ? null : 'notifications')}
+            />
+            {activeMenu === 'notifications' && <NotificationDropdown />}
+          </div>
+          <ThemeToggle className="h-10 w-10 p-0" />
+          <ProfileMenu
+            isOpen={activeMenu === 'profile'}
+            onToggle={() => setActiveMenu((menu) => menu === 'profile' ? null : 'profile')}
+            onClose={() => setActiveMenu(null)}
+          />
         </div>
       </div>
     </header>

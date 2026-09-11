@@ -20,6 +20,8 @@ import CreatePlanWizard from './components/plans/CreatePlanWizard';
 import TodayPage from './pages/TodayPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AchievementsPage from './pages/AchievementsPage';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 
 // Protected App Layout Wrapper
 const ProtectedAppLayout = () => {
@@ -38,7 +40,7 @@ const ProtectedAppLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex relative overflow-x-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex relative overflow-x-hidden transition-colors duration-300">
       <LightningBackground intensity="subtle" />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
@@ -80,6 +82,8 @@ const App = () => {
               <Route path="/today" element={<TodayPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
             {/* Catch All Redirect */}

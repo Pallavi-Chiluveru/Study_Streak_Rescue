@@ -78,11 +78,10 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
           <button
             onClick={task.status !== 'completed' ? handleComplete : undefined}
             disabled={task.status === 'completed'}
-            className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-              task.status === 'completed'
+            className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${task.status === 'completed'
                 ? 'bg-emerald-500 border-emerald-400 text-slate-950'
                 : 'border-slate-700 hover:border-orange-400 bg-slate-800/80 text-transparent hover:text-orange-500'
-            }`}
+              }`}
           >
             <CheckCircle2 className="w-4 h-4" />
           </button>
@@ -126,16 +125,17 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
                 <ElectricButton
                   variant="secondary"
                   size="sm"
+                  icon={Play}
                   onClick={() => onOpenTimer(task)}
                 >
-                  <Play className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Start Focus</span>
+                  Start Focus
                 </ElectricButton>
               )}
 
               <ElectricButton
                 variant="success"
                 size="sm"
+                icon={CheckCircle2}
                 onClick={handleComplete}
               >
                 Complete

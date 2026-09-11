@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import ElectricButton from './ElectricButton';
 
 const ConfirmModal = ({
@@ -31,10 +31,10 @@ const ConfirmModal = ({
         </div>
         <p className="text-sm text-slate-300 mb-6">{message}</p>
         <div className="flex items-center justify-end gap-3">
-          <ElectricButton variant="secondary" size="md" onClick={onCancel}>
+          <ElectricButton variant="secondary" size="md" icon={X} onClick={onCancel}>
             {cancelLabel}
           </ElectricButton>
-          <ElectricButton variant={variant} size="md" onClick={onConfirm}>
+          <ElectricButton variant={variant} size="md" icon={CheckCircle2} onClick={onConfirm}>
             {confirmLabel}
           </ElectricButton>
         </div>

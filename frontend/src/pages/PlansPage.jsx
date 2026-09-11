@@ -67,8 +67,8 @@ const PlansPage = () => {
     <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-white">My Study Plans</h2>
-          <p className="text-xs text-slate-400">Manage your adaptive learning goals and catch-up schedules.</p>
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">My Study Plans</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Manage your adaptive learning goals and catch-up schedules.</p>
         </div>
         <ElectricButton variant="primary" onClick={() => navigate('/plans/new')} icon={Plus}>
           Create New Plan
@@ -76,7 +76,7 @@ const PlansPage = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-300 dark:border-slate-800 pb-3">
         {[
           { key: 'all', label: 'All Plans' },
           { key: 'active', label: 'Active' },
@@ -86,11 +86,10 @@ const PlansPage = () => {
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-              filter === tab.key
-                ? 'bg-orange-600/30 border border-orange-400 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${filter === tab.key
+                ? 'bg-orange-50 dark:bg-orange-600/30 border border-orange-200 dark:border-orange-400 text-orange-700 dark:text-white shadow-sm'
+                : 'text-slate-700 dark:text-slate-400 hover:text-orange-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
+              }`}
           >
             {tab.label}
           </button>
@@ -133,12 +132,12 @@ const PlansPage = () => {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-white mb-2">{plan.title}</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{plan.title}</h3>
                 {plan.description && (
-                  <p className="text-xs text-slate-400 line-clamp-2 mb-3">{plan.description}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">{plan.description}</p>
                 )}
 
-                <div className="flex items-center gap-3 text-xs text-slate-400 font-mono mb-4">
+                <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 font-mono mb-4">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-500" />
                     Deadline: {new Date(plan.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -146,11 +145,11 @@ const PlansPage = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-slate-400 font-medium">
+                  <div className="flex justify-between text-xs text-slate-700 dark:text-slate-400 font-medium">
                     <span>Progress</span>
-                    <span className="text-white font-bold">{plan.progressPct || 0}%</span>
+                    <span className="text-slate-900 dark:text-white font-bold">{plan.progressPct || 0}%</span>
                   </div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-500"
                       style={{ width: `${plan.progressPct || 0}%` }}

@@ -34,6 +34,9 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
   }
 
   const isRescueNeeded = score < 50;
+  const statusBadgeClass = isRescueNeeded
+    ? 'bg-red-500/15 border-red-300/25 text-red-200'
+    : `bg-transparent ${borderColor} ${color}`;
 
   if (compact) {
     return (
@@ -47,23 +50,28 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
 
   return (
     <div
-      className={`relative p-5 rounded-2xl border backdrop-blur-md transition-all duration-300 ${
-        isRescueNeeded
-          ? 'bg-gradient-to-br from-slate-900 via-red-950/40 to-slate-900 border-red-500/60 shadow-xl shadow-red-950/30 animate-rescue-pulse'
-          : `bg-gradient-to-br ${bgGradient} ${borderColor}`
-      }`}
+      className={`relative overflow-hidden p-5 rounded-2xl border backdrop-blur-md transition-all duration-300 ${isRescueNeeded
+        ? 'border-[rgba(251,146,60,0.28)] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_28%),linear-gradient(135deg,#5A4D56_0%,#4A4454_40%,#3F4658_100%)] shadow-[0_12px_28px_rgba(249,115,22,0.18),0_4px_14px_rgba(239,68,68,0.08)]'
+        : `bg-gradient-to-br ${bgGradient} ${borderColor}`
+        }`}
     >
-      <div className="flex items-center justify-between gap-4">
+      {isRescueNeeded && (
+        <>
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08),transparent_42%,rgba(251,146,60,0.05))]" />
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-orange-50/65 to-transparent" />
+        </>
+      )}
+      <div className="relative z-10 flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Heart className={`w-5 h-5 ${color} ${isRescueNeeded ? 'animate-pulse' : ''}`} />
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-200/80">
               Plan Health
             </span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold tracking-tight text-white">{score}%</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${borderColor} ${color}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusBadgeClass}`}>
               {status}
             </span>
           </div>
@@ -78,7 +86,7 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
               r="22"
               stroke="currentColor"
               strokeWidth="4"
-              className="text-slate-800"
+              className="text-slate-300/70"
               fill="transparent"
             />
             <circle
@@ -100,19 +108,20 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
 
       {/* Rescue Alert Warning Banner */}
       {isRescueNeeded && (
-        <div className="mt-4 pt-3 border-t border-red-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-red-200">
+        <div className="relative z-10 mt-5 flex flex-col items-start justify-between gap-4 border-t border-white/15 pt-4 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-100">
             <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0 animate-bounce" />
-            <span>⚠ Your plan is slipping. Rebalance work now.</span>
+            <span>Your plan is slipping. Rebalance work now.</span>
           </div>
           {showButton && onRescueClick && (
             <ElectricButton
-              variant="rescue"
-              size="sm"
+              variant="rescueCompact"
+              size="md"
+              icon={Zap}
               onClick={onRescueClick}
-              className="w-full sm:w-auto"
+              className="h-11 min-w-[160px] rounded-xl px-5 whitespace-nowrap shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35"
             >
-              ⚡ Rescue Now
+              Rescue Now
             </ElectricButton>
           )}
         </div>

@@ -105,20 +105,20 @@ const FocusTimer = ({ task, isOpen, onClose, onCompleteTask }) => {
         <div className="flex items-center justify-center gap-4">
           <ElectricButton
             variant={isActive ? 'secondary' : 'primary'}
-            size="lg"
+            size="md"
+            icon={isActive ? Pause : Play}
             onClick={() => setIsActive(!isActive)}
           >
-            {isActive ? <Pause className="w-5 h-5 text-amber-400" /> : <Play className="w-5 h-5 text-emerald-400" />}
-            <span>{isActive ? 'Pause' : 'Resume'}</span>
+            {isActive ? 'Pause' : 'Resume'}
           </ElectricButton>
 
           <ElectricButton
             variant="success"
-            size="lg"
+            size="md"
+            icon={CheckCircle2}
             onClick={handleFinish}
           >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>Complete Session</span>
+            Complete Session
           </ElectricButton>
         </div>
       </div>

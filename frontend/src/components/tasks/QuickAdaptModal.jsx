@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Clock, X } from 'lucide-react';
+import { Zap, Clock, X, RefreshCw } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
 import API from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -59,11 +59,10 @@ const QuickAdaptModal = ({ planId, isOpen, onClose, onAdaptComplete }) => {
                 setSelectedMinutes(mins);
                 setCustomVal('');
               }}
-              className={`p-3 rounded-xl border text-center transition-all ${
-                selectedMinutes === mins && !customVal
+              className={`p-3 rounded-xl border text-center transition-all ${selectedMinutes === mins && !customVal
                   ? 'bg-orange-600/30 border-orange-400 text-white font-bold'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-              }`}
+                }`}
             >
               <div className="text-base font-bold">{mins < 60 ? `${mins}m` : `${mins / 60}h`}</div>
               <div className="text-[10px] text-slate-400">Available</div>
@@ -83,11 +82,11 @@ const QuickAdaptModal = ({ planId, isOpen, onClose, onAdaptComplete }) => {
         </div>
 
         <div className="flex justify-end gap-2">
-          <ElectricButton variant="secondary" size="sm" onClick={onClose}>
+          <ElectricButton variant="secondary" size="sm" icon={X} onClick={onClose}>
             Cancel
           </ElectricButton>
-          <ElectricButton variant="primary" size="sm" onClick={handleAdapt} disabled={loading}>
-            {loading ? 'Adapting...' : 'Re-balance Today ⚡'}
+          <ElectricButton variant="primary" size="sm" icon={RefreshCw} onClick={handleAdapt} disabled={loading}>
+            {loading ? 'Adapting...' : 'Re-balance Today'}
           </ElectricButton>
         </div>
       </div>

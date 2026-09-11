@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Zap, ShieldCheck, RefreshCw, Calendar, Clock, CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { Zap, ShieldCheck, RefreshCw, Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
 import API from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { useTheme } from '../../context/ThemeContext';
+import darkModeLogo from '../../assets/darkmodelogo.png';
+import whiteModeLogo from '../../assets/whitemodelogo.png';
 
 const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) => {
   const [step, setStep] = useState(1); // 1: Overview, 2: Select Time, 3: Animate, 4: Success
@@ -12,6 +15,8 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
   const [rescueResult, setRescueResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
+  const { theme } = useTheme();
+  const logo = theme === 'dark' ? darkModeLogo : whiteModeLogo;
 
   if (!isOpen || !plan) return null;
 
@@ -65,57 +70,62 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-slate-900 border border-red-500/50 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-red-950/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/35 p-4 backdrop-blur-[2px] animate-fade-in dark:bg-black/60">
+      <div className="relative w-[92%] max-w-2xl rounded-3xl border border-orange-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:border-orange-500/30 dark:bg-slate-900 dark:shadow-2xl dark:shadow-red-950/40 sm:p-8">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-full border border-slate-800 bg-slate-950/60"
+          className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-red-500/40 dark:hover:bg-red-500/10 dark:hover:text-red-400"
         >
-          <X className="w-5 h-5" />
+          <X className="h-5 w-5" />
         </button>
 
         {/* STEP 1: Overview of Slipping Schedule */}
         {step === 1 && (
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/50 animate-rescue-pulse">
-                <Zap className="w-6 h-6 text-white animate-lightning" />
-              </div>
+            <div className="mb-5 flex items-center gap-4 pr-12">
+              <img src={logo} alt="Study Streak Rescue" className="h-14 w-14 shrink-0 rounded-2xl object-contain shadow-lg shadow-orange-500/20" />
               <div>
-                <h3 className="text-xl font-extrabold text-white">Let's Fix Your Plan</h3>
-                <p className="text-xs text-slate-400">Intelligent automatic catch-up scheduling</p>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Let's Fix Your Plan</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Intelligent automatic catch-up scheduling</p>
               </div>
             </div>
 
-            <p className="text-sm text-slate-300 mb-6">
-              Don't panic. Study Streak Rescue protects your completed tasks and redistributes remaining work across your remaining deadline.
+            <p className="mb-6 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+              Study Streak Rescue protects your completed tasks and redistributes remaining work across your remaining deadline.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-center">
-                <div className="text-xl font-bold text-emerald-400">{completedCount}</div>
-                <div className="text-[11px] text-slate-400 font-medium">Completed</div>
+            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{completedCount}</div>
+                <div className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">Completed</div>
               </div>
-              <div className="p-3 rounded-xl bg-orange-950/30 border border-orange-500/30 text-center">
-                <div className="text-xl font-bold text-orange-300">{remainingCount}</div>
-                <div className="text-[11px] text-slate-400 font-medium">Remaining</div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center dark:border-amber-500/20 dark:bg-amber-500/10">
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{remainingCount}</div>
+                <div className="text-[11px] font-medium text-amber-800 dark:text-amber-300">Remaining</div>
               </div>
-              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/50 text-center animate-pulse">
-                <div className="text-xl font-bold text-red-400">{missedCount}</div>
-                <div className="text-[11px] text-red-300 font-medium">Missed</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center dark:border-red-500/20 dark:bg-red-500/10">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{missedCount}</div>
+                <div className="text-[11px] font-medium text-red-700 dark:text-red-300">Missed</div>
               </div>
-              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-center">
-                <div className="text-xl font-bold text-orange-400">{daysRemaining}</div>
-                <div className="text-[11px] text-slate-400 font-medium">Days Left</div>
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center dark:border-orange-500/20 dark:bg-orange-500/10">
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{daysRemaining}</div>
+                <div className="text-[11px] font-medium text-orange-800 dark:text-orange-300">Days Left</div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
-              <ElectricButton variant="secondary" onClick={onClose}>
+            {typeof plan.healthScore === 'number' && (
+              <p className="mb-5 text-sm font-semibold text-red-600 dark:text-red-400">
+                Current Plan Health: {plan.healthScore}% <span className="font-normal text-slate-600 dark:text-slate-400">— Rescue Recommended</span>
+              </p>
+            )}
+
+            <div className="flex flex-col items-stretch justify-end gap-3 sm:flex-row sm:items-center">
+              <button type="button" onClick={onClose} className="inline-flex h-11 min-w-[100px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                <X className="h-4 w-4 shrink-0" />
                 Cancel
-              </ElectricButton>
-              <ElectricButton variant="rescue" onClick={() => setStep(2)}>
-                Continue Rescue <ArrowRight className="w-4 h-4 ml-1" />
+              </button>
+              <ElectricButton variant="primary" size="md" icon={Zap} onClick={() => setStep(2)} className="h-11 min-w-[170px] rounded-xl px-5 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/25 whitespace-nowrap">
+                Continue Rescue
               </ElectricButton>
             </div>
           </div>
@@ -141,11 +151,10 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
                     setSelectedHours(hrs);
                     setCustomMinutes('');
                   }}
-                  className={`p-4 rounded-2xl border text-center transition-all ${
-                    selectedHours === hrs && !customMinutes
-                      ? 'bg-gradient-to-br from-orange-600/30 to-amber-600/20 border-orange-400 text-white shadow-lg shadow-orange-950/50 scale-105'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
-                  }`}
+                  className={`p-4 rounded-2xl border text-center transition-all ${selectedHours === hrs && !customMinutes
+                    ? 'bg-gradient-to-br from-orange-600/30 to-amber-600/20 border-orange-400 text-white shadow-lg shadow-orange-950/50 scale-105'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                    }`}
                 >
                   <div className="text-2xl font-bold text-white">{hrs}h</div>
                   <div className="text-[11px] text-slate-400 font-medium">per day</div>
@@ -167,11 +176,11 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <ElectricButton variant="secondary" onClick={() => setStep(1)}>
+              <ElectricButton variant="secondary" icon={ArrowLeft} onClick={() => setStep(1)}>
                 Back
               </ElectricButton>
-              <ElectricButton variant="rescue" onClick={handleStartRescueAnimation}>
-                ⚡ Rebuild My Schedule
+              <ElectricButton variant="rescue" icon={Zap} onClick={handleStartRescueAnimation}>
+                Rebuild My Schedule
               </ElectricButton>
             </div>
           </div>
@@ -234,10 +243,11 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
             <ElectricButton
               variant="primary"
               size="lg"
+              icon={ArrowRight}
               fullWidth
               onClick={onClose}
             >
-              View New Schedule ⚡
+              View New Schedule
             </ElectricButton>
           </div>
         )}

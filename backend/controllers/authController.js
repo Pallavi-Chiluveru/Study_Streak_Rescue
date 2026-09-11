@@ -91,8 +91,47 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const getSettings = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('preferences');
+    res.json(user.preferences || {});
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateSettings = async (req, res, next) => {
+  try {
+    const allowed = [
+      'focusSessionMinutes', 'defaultDailyMinutes', 'preferredStudyTime', 'defaultDifficulty',
+      'autoStartFocusTimer', 'autoDetectMissed', 'rescueSuggestions', 'rescueThreshold',
+      'preserveLowPriority', 'notifications', 'planning', 'gamification'
+    ];
+    const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
+    const user = await User.findById(req.user._id);
+    if (!user.preferences) user.preferences = {};
+    allowed.forEach((key) => {
+      if (updates[key] !== undefined) {
+        if (['notifications', 'planning', 'gamification'].includes(key)) {
+          const currentGroup = user.preferences?.[key];
+          const currentValues = currentGroup?.toObject ? currentGroup.toObject() : (currentGroup || {});
+          user.preferences[key] = { ...currentValues, ...updates[key] };
+        } else {
+          user.preferences[key] = updates[key];
+        }
+      }
+    });
+    await user.save();
+    res.json(user.preferences);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
-  getMe
+  getMe,
+  getSettings,
+  updateSettings
 };
