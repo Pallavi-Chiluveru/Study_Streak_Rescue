@@ -19,7 +19,8 @@ const ConfirmModal = ({
       <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+          aria-label="Close dialog"
+          className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
         >
           <X className="w-5 h-5" />
         </button>
@@ -29,7 +30,7 @@ const ConfirmModal = ({
           </div>
           <h3 className="text-lg font-bold text-white">{title}</h3>
         </div>
-        <p className="text-sm text-slate-300 mb-6">{message}</p>
+        <p className="mb-6 text-base leading-7 text-slate-600 dark:text-slate-300">{message}</p>
         <div className="flex items-center justify-end gap-3">
           <ElectricButton variant="secondary" size="md" icon={X} onClick={onCancel}>
             {cancelLabel}

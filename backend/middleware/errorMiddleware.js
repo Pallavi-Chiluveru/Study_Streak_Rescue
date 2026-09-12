@@ -1,10 +1,9 @@
 const errorHandler = (err, req, res, next) => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  console.error('API Error:', err.message, err.stack);
+  const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
+  // Provider errors, database errors and request config can contain credentials.
+  console.error('API request failed.');
   res.status(statusCode).json({
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    message: statusCode >= 500 ? 'Internal Server Error' : 'Unable to process this request.'
   });
 };
-
 module.exports = { errorHandler };

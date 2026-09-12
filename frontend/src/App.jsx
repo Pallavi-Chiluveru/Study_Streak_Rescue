@@ -1,7 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { useAuth } from './context/authContext.js';
 import { ToastProvider } from './context/ToastContext';
+import { destinationAfterAuth } from './utils/authRouting';
 
 // Components & Layout
 import Sidebar from './components/layout/Sidebar';
@@ -11,6 +13,8 @@ import LightningBackground from './components/ui/LightningBackground';
 
 // Pages
 import LandingPage from './pages/LandingPage';
+import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './pages/ForgotPassword';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -22,6 +26,8 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import AchievementsPage from './pages/AchievementsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import GoalsPage from './pages/GoalsPage';
+import GoalOnboardingPage from './pages/GoalOnboardingPage';
 
 // Protected App Layout Wrapper
 const ProtectedAppLayout = () => {
@@ -40,12 +46,12 @@ const ProtectedAppLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex relative overflow-x-hidden transition-colors duration-300">
+    <div className="app-shell min-h-screen bg-[#F6F8FA] text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100 flex relative overflow-x-hidden">
       <LightningBackground intensity="subtle" />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar />
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto relative z-10">
+        <main className="flex-1 p-5 sm:p-8 max-w-[1400px] w-full mx-auto relative z-10">
           <Outlet />
         </main>
         <MobileNavigation />
@@ -58,7 +64,7 @@ const ProtectedAppLayout = () => {
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to={destinationAfterAuth(user)} replace />;
   return children;
 };
 
@@ -70,12 +76,17 @@ const App = () => {
           <Routes>
             {/* Public Landing & Auth Routes */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
             {/* Protected App Routes */}
             <Route element={<ProtectedAppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/goals" element={<GoalsPage />} />
+              <Route path="/onboarding/goals" element={<GoalOnboardingPage />} />
+              <Route path="/goals/setup" element={<Navigate to="/onboarding/goals" replace />} />
               <Route path="/plans" element={<PlansPage />} />
               <Route path="/plans/new" element={<CreatePlanWizard />} />
               <Route path="/plans/:id" element={<PlanDetailsPage />} />

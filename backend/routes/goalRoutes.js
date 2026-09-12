@@ -1,0 +1,17 @@
+﻿const router=require('express').Router();
+const c=require('../controllers/goalController');
+const {protect}=require('../middleware/authMiddleware');
+router.use(protect);
+router.get('/',c.listGoals);
+router.post('/',c.createGoal);
+router.post('/extract',c.extract);
+router.get('/profile',c.getProfile);
+router.patch('/profile',c.updateProfile);
+router.patch('/onboarding',c.onboarding);
+router.post('/schedule/preview',c.preview);
+router.post('/schedule/:previewId/apply',c.apply);
+router.get('/:id',c.getGoal);
+router.patch('/:id',c.updateGoal);
+router.patch('/:id/status',c.setStatus);
+router.post('/:id/analyze',c.analyze);
+module.exports=router;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Zap, ShieldCheck, RefreshCw, Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
 import API from '../../services/api';
@@ -6,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext';
 import darkModeLogo from '../../assets/darkmodelogo.png';
 import whiteModeLogo from '../../assets/whitemodelogo.png';
+import { energySweep, impactIconEntrance, impactReveal, shakeZoomImpact } from '../../lib/motion';
 
 const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) => {
   const [step, setStep] = useState(1); // 1: Overview, 2: Select Time, 3: Animate, 4: Success
@@ -17,6 +19,8 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
   const { addToast } = useToast();
   const { theme } = useTheme();
   const logo = theme === 'dark' ? darkModeLogo : whiteModeLogo;
+  const reducedMotion = useReducedMotion();
+  const mobileImpact = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
 
   if (!isOpen || !plan) return null;
 
@@ -70,7 +74,7 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/35 p-4 backdrop-blur-[2px] animate-fade-in dark:bg-black/60">
+    <div className="modal-surface fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/35 p-4 backdrop-blur-[2px] animate-fade-in dark:bg-black/60">
       <div className="relative w-[92%] max-w-2xl rounded-3xl border border-orange-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:border-orange-500/30 dark:bg-slate-900 dark:shadow-2xl dark:shadow-red-950/40 sm:p-8">
         <button
           onClick={onClose}
@@ -175,11 +179,11 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
               />
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <ElectricButton variant="secondary" icon={ArrowLeft} onClick={() => setStep(1)}>
+            <div className="flex flex-col items-stretch justify-between gap-3 pt-2 sm:flex-row sm:items-center">
+              <ElectricButton variant="secondary" size="md" icon={ArrowLeft} onClick={() => setStep(1)} className="h-11 px-4 text-sm">
                 Back
               </ElectricButton>
-              <ElectricButton variant="rescue" icon={Zap} onClick={handleStartRescueAnimation}>
+              <ElectricButton variant="rescueCompact" size="md" icon={Zap} onClick={handleStartRescueAnimation} className="h-11 min-w-[210px] rounded-xl px-5 text-sm font-semibold shadow-md shadow-orange-500/20 transition-all duration-200 hover:shadow-orange-500/30">
                 Rebuild My Schedule
               </ElectricButton>
             </div>
@@ -207,49 +211,26 @@ const RescueModal = ({ plan, tasks = [], isOpen, onClose, onRescueComplete }) =>
 
         {/* STEP 4: Rescue Success Screen */}
         {step === 4 && (
-          <div className="text-center py-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 mx-auto flex items-center justify-center mb-4 shadow-xl shadow-emerald-950/50 animate-bounce">
-              <Zap className="w-8 h-8 text-yellow-300 fill-yellow-300" />
-            </div>
-
-            <h2 className="text-3xl font-extrabold text-white tracking-tight mb-1">
-              ⚡ PLAN RESCUED
-            </h2>
-            <p className="text-sm text-emerald-400 font-medium mb-6">
-              You're back on track! Unfinished tasks are redistributed.
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 text-left">
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-                <div className="text-xs text-slate-400">Rescheduled</div>
-                <div className="text-xl font-bold text-white">{rescueResult?.rescheduledCount || remainingCount} Tasks</div>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-                <div className="text-xs text-slate-400">Days Left</div>
-                <div className="text-xl font-bold text-orange-400">{rescueResult?.daysRemaining || daysRemaining} Days</div>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-                <div className="text-xs text-slate-400">Daily Target</div>
-                <div className="text-xl font-bold text-orange-300">
-                  {Math.round((rescueResult?.dailyTargetMinutes || selectedHours * 60) / 60)}h / day
-                </div>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-                <div className="text-xs text-slate-400">New Health</div>
-                <div className="text-xl font-bold text-emerald-400">{rescueResult?.newHealthScore || 86}%</div>
-              </div>
-            </div>
-
-            <ElectricButton
-              variant="primary"
-              size="lg"
-              icon={ArrowRight}
-              fullWidth
-              onClick={onClose}
-            >
-              View New Schedule
-            </ElectricButton>
-          </div>
+          <motion.section
+            {...shakeZoomImpact({ mobile: mobileImpact, reducedMotion })}
+            className="relative overflow-hidden rounded-3xl border border-orange-400/40 bg-gradient-to-br from-orange-500/10 via-transparent to-amber-400/10 px-4 py-6 text-center shadow-[0_0_34px_rgba(249,115,22,0.20)] sm:px-6"
+            aria-live="polite"
+          >
+            <motion.div {...energySweep(reducedMotion)} aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-amber-200/40 to-transparent blur-sm" />
+            <motion.div {...impactIconEntrance(reducedMotion)} className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-orange-300 bg-orange-500/15 shadow-xl shadow-orange-500/20">
+              <CheckCircle2 className="h-9 w-9 text-orange-500" aria-hidden="true" />
+            </motion.div>
+            <h2 className="mb-1 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">PLAN RESCUED</h2>
+            <p className="mb-1 text-base font-semibold text-orange-600 dark:text-orange-300">{rescueResult?.rescheduledCount || remainingCount} tasks redistributed</p>
+            <p className="mx-auto mb-6 max-w-md text-sm text-slate-600 dark:text-slate-300">Your updated schedule now fits your available study time.</p>
+            <motion.div {...impactReveal(reducedMotion)} className="mb-6 grid grid-cols-2 gap-3 text-left sm:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-3.5 dark:border-slate-700 dark:bg-slate-900/80"><div className="text-xs text-slate-500">Rescheduled</div><div className="text-xl font-bold text-slate-950 dark:text-white">{rescueResult?.rescheduledCount || remainingCount} Tasks</div></div>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-3.5 dark:border-slate-700 dark:bg-slate-900/80"><div className="text-xs text-slate-500">Days Left</div><div className="text-xl font-bold text-orange-500">{rescueResult?.daysRemaining || daysRemaining} Days</div></div>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-3.5 dark:border-slate-700 dark:bg-slate-900/80"><div className="text-xs text-slate-500">Daily Target</div><div className="text-xl font-bold text-orange-500">{Math.round((rescueResult?.dailyTargetMinutes || selectedHours * 60) / 60)}h / day</div></div>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-3.5 dark:border-slate-700 dark:bg-slate-900/80"><div className="text-xs text-slate-500">New Health</div><div className="text-xl font-bold text-emerald-500">{rescueResult?.newHealthScore || 86}%</div></div>
+            </motion.div>
+            <ElectricButton variant="primary" size="lg" icon={ArrowRight} fullWidth onClick={onClose}>View Updated Schedule</ElectricButton>
+          </motion.section>
         )}
       </div>
     </div>

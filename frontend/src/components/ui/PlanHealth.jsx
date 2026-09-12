@@ -63,15 +63,15 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
       )}
       <div className="relative z-10 flex items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="mb-2 flex items-center gap-2">
             <Heart className={`w-5 h-5 ${color} ${isRescueNeeded ? 'animate-pulse' : ''}`} />
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-200/80">
+            <span className="text-sm font-semibold tracking-wide text-slate-200/90">
               Plan Health
             </span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold tracking-tight text-white">{score}%</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusBadgeClass}`}>
+            <span className={`rounded-full border px-2.5 py-1 text-sm font-semibold ${statusBadgeClass}`}>
               {status}
             </span>
           </div>
@@ -108,8 +108,8 @@ const PlanHealth = ({ score = 100, onRescueClick, compact = false, showButton = 
 
       {/* Rescue Alert Warning Banner */}
       {isRescueNeeded && (
-        <div className="relative z-10 mt-5 flex flex-col items-start justify-between gap-4 border-t border-white/15 pt-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-100">
+        <div className="relative z-10 mt-5 flex flex-col items-start justify-between gap-4 border-t border-white/15 pt-5 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
             <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0 animate-bounce" />
             <span>Your plan is slipping. Rebalance work now.</span>
           </div>

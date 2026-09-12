@@ -23,7 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
-.env.example
 node_modules
 dist
 .env.production

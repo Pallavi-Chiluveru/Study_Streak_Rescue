@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, LogIn } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authContext.js';
 import { useToast } from '../context/ToastContext';
 import ElectricButton from '../components/ui/ElectricButton';
 import LightningBackground from '../components/ui/LightningBackground';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import BrandLogo from '../components/ui/BrandLogo';
+import { destinationAfterAuth } from '../utils/authRouting';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -25,11 +26,11 @@ const LoginPage = () => {
     }
     setLoading(true);
     try {
-      await login(email, password);
-      addToast('Welcome back! ⚡', 'success');
-      navigate('/dashboard');
+      const authenticatedUser = await login(email, password);
+      addToast('Welcome back!', 'success');
+      navigate(destinationAfterAuth(authenticatedUser), { replace: true });
     } catch (error) {
-      console.error('Login error:', error);
+
       addToast(error.response?.data?.message || 'Invalid email or password', 'error');
     } finally {
       setLoading(false);
@@ -37,7 +38,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center px-4 py-16 text-slate-900 dark:text-slate-100 relative overflow-hidden transition-colors duration-300">
+    <div className="auth-surface min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center px-4 py-16 text-slate-900 dark:text-slate-100 relative overflow-hidden transition-colors duration-300">
       <LightningBackground intensity="medium" />
       <div className="absolute top-5 right-5 z-20"><ThemeToggle /></div>
 
@@ -70,7 +71,7 @@ const LoginPage = () => {
                 <input
                   type="password"
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-orange-400"
@@ -78,6 +79,9 @@ const LoginPage = () => {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm font-semibold text-orange-400 hover:underline focus-visible:outline-orange-400">Forgot Password?</Link>
+            </div>
             <ElectricButton
               type="submit"
               variant="primary"
@@ -104,3 +108,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

@@ -14,9 +14,9 @@ const ProgressBar = ({ value = 0, max = 100, height = 'h-2.5', showText = false,
   return (
     <div className={`w-full ${className}`}>
       {showText && (
-        <div className="flex justify-between items-center text-xs text-slate-400 mb-1.5 font-medium">
+        <div className="flex justify-between items-center text-sm text-slate-600 dark:text-slate-400 mb-2 font-medium">
           <span>Progress</span>
-          <span className="text-slate-200 font-semibold">{percentage}%</span>
+          <span className="text-slate-900 dark:text-slate-100 font-semibold">{percentage}%</span>
         </div>
       )}
       <div className={`w-full bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50 p-0.5 ${height}`}>

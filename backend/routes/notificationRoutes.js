@@ -1,0 +1,10 @@
+const express = require('express');
+const { protect } = require('../middleware/authMiddleware');
+const { listNotifications, readNotification, readAllNotifications, claimNotificationImpact } = require('../controllers/notificationController');
+const router = express.Router();
+router.use(protect);
+router.get('/', listNotifications);
+router.patch('/read-all', readAllNotifications);
+router.patch('/:id/claim-impact', claimNotificationImpact);
+router.patch('/:id/read', readNotification);
+module.exports = router;

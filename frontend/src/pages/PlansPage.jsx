@@ -64,13 +64,13 @@ const PlansPage = () => {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="plans-page relative space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">My Study Plans</h2>
           <p className="text-xs text-slate-600 dark:text-slate-400">Manage your adaptive learning goals and catch-up schedules.</p>
         </div>
-        <ElectricButton variant="primary" onClick={() => navigate('/plans/new')} icon={Plus}>
+        <ElectricButton variant="primary" onClick={() => navigate('/plans/new')} icon={Plus} className="plans-create-button shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all duration-200">
           Create New Plan
         </ElectricButton>
       </div>
@@ -86,9 +86,9 @@ const PlansPage = () => {
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${filter === tab.key
-                ? 'bg-orange-50 dark:bg-orange-600/30 border border-orange-200 dark:border-orange-400 text-orange-700 dark:text-white shadow-sm'
-                : 'text-slate-700 dark:text-slate-400 hover:text-orange-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
+            className={`plans-filter-tab px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${filter === tab.key
+              ? 'bg-orange-50 dark:bg-orange-600/30 border border-orange-200 dark:border-orange-400 text-orange-700 dark:text-white shadow-sm'
+              : 'text-slate-700 dark:text-slate-400 hover:text-orange-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
               }`}
           >
             {tab.label}
@@ -111,7 +111,7 @@ const PlansPage = () => {
               key={plan._id}
               rescueAlert={plan.healthScore < 50}
               onClick={() => navigate(`/plans/${plan._id}`)}
-              className="space-y-4 flex flex-col justify-between"
+              className={`plans-card space-y-4 flex flex-col justify-between ${plan.status === 'active' ? 'plans-card-active' : ''}`}
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -119,7 +119,7 @@ const PlansPage = () => {
                     {plan.category}
                   </span>
                   <div className="flex items-center gap-2">
-                    <PlanHealth score={plan.healthScore} compact />
+                    <span className="plans-health-badge"><PlanHealth score={plan.healthScore} compact /></span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -149,9 +149,9 @@ const PlansPage = () => {
                     <span>Progress</span>
                     <span className="text-slate-900 dark:text-white font-bold">{plan.progressPct || 0}%</span>
                   </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div className="plans-progress-track w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-500"
+                      className={`plans-progress-fill h-full bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 transition-all duration-500 ${plan.status === 'active' ? 'plans-progress-fill-active' : ''}`}
                       style={{ width: `${plan.progressPct || 0}%` }}
                     />
                   </div>

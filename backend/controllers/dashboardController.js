@@ -1,8 +1,10 @@
+const { getEffectiveEstimatedMinutes } = require('../services/adaptiveEstimationService');
 const User = require('../models/User');
 const Plan = require('../models/Plan');
 const Task = require('../models/Task');
 const { getStartOfDay, getEndOfDay } = require('../utils/dateUtils');
 const { calculatePlanHealth } = require('../services/healthService');
+const { evaluateGamification } = require('../services/gamificationService');
 
 // @desc    Get main dashboard metrics
 // @route   GET /api/dashboard
@@ -34,6 +36,7 @@ const getDashboardData = async (req, res, next) => {
     for (const plan of plans) {
       const { healthScore } = calculatePlanHealth(plan, tasksByPlan.get(String(plan._id)) || []);
       plan.healthScore = healthScore;
+      plan.healthHistory.push({ score: healthScore });
       plan.status = healthScore < 50 ? 'rescue_needed' : plan.status;
       await plan.save();
     }
@@ -55,28 +58,11 @@ const getDashboardData = async (req, res, next) => {
 
     const todayRemainingMinutes = todayTasks
       .filter(t => t.status !== 'completed')
-      .reduce((sum, t) => sum + (t.estimatedMinutes || 45), 0);
+      .reduce((sum, t) => sum + (getEffectiveEstimatedMinutes(t)), 0);
 
     const missedCountTotal = refreshedTasks.filter(t => t.status === 'missed').length;
 
-    // Build notifications/alerts
-    const notifications = [];
-    if (missedCountTotal > 0) {
-      notifications.push({
-        id: 'rescue_needed',
-        type: 'warning',
-        title: 'Plan Slipping',
-        message: `You have ${missedCountTotal} missed task(s). Rescue your plan to get back on track!`
-      });
-    }
-    if (user.streak >= 3) {
-      notifications.push({
-        id: 'streak_milestone',
-        type: 'success',
-        title: 'Streak Active! 🔥',
-        message: `${user.streak} Day Study Streak! Keep the momentum alive.`
-      });
-    }
+    const gamification = await evaluateGamification(userId);
 
     res.json({
       user: {
@@ -93,7 +79,9 @@ const getDashboardData = async (req, res, next) => {
         avgHealthScore,
         focusHoursFormatted: `${Math.floor((user.totalFocusMinutes || 0) / 60)}h ${(user.totalFocusMinutes || 0) % 60}m`,
         totalPlans: plans.length,
-        missedTasksCount: missedCountTotal
+        missedTasksCount: missedCountTotal,
+        level: gamification.level,
+        gamificationXP: gamification.xp
       },
       activePlans: plans.slice(0, 3).map(p => {
         const pTasks = refreshedTasks.filter(t => String(t.planId) === String(p._id));
@@ -117,7 +105,7 @@ const getDashboardData = async (req, res, next) => {
         remainingMinutes: todayRemainingMinutes,
         remainingHoursFormatted: `${Math.floor(todayRemainingMinutes / 60)}h ${todayRemainingMinutes % 60}m`
       },
-      notifications
+      gamification
     });
   } catch (error) {
     next(error);

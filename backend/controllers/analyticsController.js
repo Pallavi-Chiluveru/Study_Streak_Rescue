@@ -1,3 +1,4 @@
+const { getPaceProfile } = require('../services/adaptiveEstimationService');
 const Task = require('../models/Task');
 const Plan = require('../models/Plan');
 const User = require('../models/User');
@@ -41,7 +42,7 @@ const getAnalytics = async (req, res, next) => {
       const completedOnDay = tasks.filter(t => t.completedAt && t.completedAt >= dayStart && t.completedAt <= dayEnd).length;
       const focusOnDay = tasks
         .filter(t => t.completedAt && t.completedAt >= dayStart && t.completedAt <= dayEnd)
-        .reduce((sum, t) => sum + (t.actualFocusMinutes || t.estimatedMinutes || 30), 0);
+        .reduce((sum, t) => sum + (t.actualFocusMinutes || 0), 0);
 
       weeklyData.push({
         day: dayName,
@@ -63,6 +64,7 @@ const getAnalytics = async (req, res, next) => {
     });
 
     res.json({
+      learningPace: getPaceProfile(user),
       overview: {
         tasksCompleted,
         tasksMissed,

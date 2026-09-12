@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  suggestPlanTopics,
   generatePlanPreview,
   createPlan,
   getPlans,
@@ -14,6 +15,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
+router.post('/suggest-topics', suggestPlanTopics);
 router.post('/generate', generatePlanPreview);
 router.post('/', createPlan);
 router.get('/', getPlans);

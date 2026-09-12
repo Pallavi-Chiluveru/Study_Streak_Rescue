@@ -3,7 +3,7 @@ import { CalendarDays, CheckCircle2 } from 'lucide-react';
 import TaskCard from '../tasks/TaskCard';
 import { formatScheduleDate, getRelativeDateLabel, normalizeDate } from '../../utils/dateUtils';
 
-const ScheduleDateGroup = ({ date, tasks, onComplete, onOpenTimer }) => {
+const ScheduleDateGroup = ({ date, tasks, onComplete, onOpenTimer, onRescue }) => {
   const relativeLabel = getRelativeDateLabel(date);
   const normalizedDate = normalizeDate(date);
   const isPast = normalizedDate && normalizedDate < normalizeDate(new Date());
@@ -18,17 +18,17 @@ const ScheduleDateGroup = ({ date, tasks, onComplete, onOpenTimer }) => {
         : 'text-slate-500 dark:text-slate-400';
 
   return (
-    <section className="mb-8 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {statusLabel === 'COMPLETED' ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <CalendarDays className="h-4 w-4 text-orange-500" />}
-        <span className="font-bold text-slate-900 dark:text-slate-100">{formatScheduleDate(date)}</span>
+    <section className="mb-8 space-y-4">
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-200 pb-3 dark:border-slate-800">
+        {statusLabel === 'COMPLETED' ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <CalendarDays className="h-5 w-5 text-orange-500" />}
+        <span className="text-base font-bold text-slate-900 dark:text-slate-100 md:text-lg">{formatScheduleDate(date)}</span>
         <span className="text-slate-300 dark:text-slate-700">•</span>
-        <span className={`text-sm font-semibold ${statusClass}`}>{statusLabel}</span>
-        <span className="text-xs text-slate-500 dark:text-slate-400">({tasks.length})</span>
+        <span className={`text-sm font-semibold md:text-base ${statusClass}`}>{statusLabel}</span>
+        <span className="text-sm text-slate-600 dark:text-slate-400">({tasks.length})</span>
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-4">
         {tasks.map((task) => (
-          <TaskCard key={task._id} task={task} onComplete={onComplete ? (currentTask) => onComplete(currentTask) : undefined} onOpenTimer={onOpenTimer ? (currentTask) => onOpenTimer(currentTask) : undefined} />
+          <TaskCard key={task._id} task={task} onComplete={onComplete ? (currentTask) => onComplete(currentTask) : undefined} onOpenTimer={onOpenTimer ? (currentTask) => onOpenTimer(currentTask) : undefined} onRescue={onRescue ? (currentTask) => onRescue(currentTask) : undefined} />
         ))}
       </div>
     </section>

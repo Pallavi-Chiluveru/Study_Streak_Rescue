@@ -1,11 +1,15 @@
+import { getEffectiveEstimatedMinutes } from '../../utils/taskEstimates';
 import React, { useState } from 'react';
 import { Play, CheckCircle2, Clock, AlertCircle, RefreshCw, Zap } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
+import { isTaskMissed } from '../../utils/dateUtils';
 
-const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
+const TaskCard = ({ task, onComplete, onOpenTimer, onRescue }) => {
   const [justCompleted, setJustCompleted] = useState(false);
+  const effectiveStatus = isTaskMissed(task) ? 'missed' : task.status;
 
   const handleComplete = () => {
+    if (effectiveStatus === 'missed' || effectiveStatus === 'completed') return;
     setJustCompleted(true);
     if (onComplete) onComplete(task);
     setTimeout(() => {
@@ -51,8 +55,7 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
     }
   };
 
-  const currentStatus = statusConfig[task.status] || statusConfig.pending;
-  const StatusIcon = currentStatus.icon;
+  const currentStatus = statusConfig[effectiveStatus] || statusConfig.pending;
 
   const priorityColor = {
     high: 'text-red-400 border-red-500/30 bg-red-500/10',
@@ -62,7 +65,7 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
 
   return (
     <div
-      className={`relative p-4 rounded-xl border transition-all duration-300 backdrop-blur-sm ${currentStatus.border} ${currentStatus.bg}`}
+      className={`relative rounded-xl border p-4 transition-all duration-300 backdrop-blur-sm md:p-5 ${currentStatus.border} ${currentStatus.bg}`}
     >
       {/* Floating XP Gain Burst animation when task completed */}
       {justCompleted && (
@@ -72,14 +75,16 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-start gap-3">
           {/* Status Checkbox / Action Trigger */}
           <button
-            onClick={task.status !== 'completed' ? handleComplete : undefined}
-            disabled={task.status === 'completed'}
-            className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${task.status === 'completed'
-                ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+            onClick={effectiveStatus !== 'completed' && effectiveStatus !== 'missed' ? handleComplete : undefined}
+            disabled={effectiveStatus === 'completed' || effectiveStatus === 'missed'}
+            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/60 ${task.status === 'completed'
+              ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+              : effectiveStatus === 'missed'
+                ? 'border-red-500/40 bg-red-500/10 text-red-400'
                 : 'border-slate-700 hover:border-orange-400 bg-slate-800/80 text-transparent hover:text-orange-500'
               }`}
           >
@@ -88,43 +93,51 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
 
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h4 className={`text-sm font-bold ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-white'}`}>
+              <h4 className={`text-base font-semibold md:text-lg ${effectiveStatus === 'completed' ? 'line-through text-slate-600 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
                 {task.title}
               </h4>
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${currentStatus.text} border-current opacity-90`}>
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold md:text-sm ${currentStatus.text} border-current opacity-90`}>
                 {currentStatus.badge}
               </span>
             </div>
 
             {task.description && (
-              <p className="text-xs text-slate-400 line-clamp-1 mb-2">{task.description}</p>
+              <p className="mb-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300 md:text-base">{task.description}</p>
             )}
 
-            <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
               <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                {task.estimatedMinutes} mins
+                <Clock className="h-4 w-4 text-slate-500" />
+                {effectiveStatus === 'completed' ? 'Planned ' : 'Estimated '}{getEffectiveEstimatedMinutes(task)} min
               </span>
-              <span className={`text-[10px] uppercase font-mono px-2 py-0.2 rounded border ${priorityColor[task.priority] || priorityColor.medium}`}>
+              {effectiveStatus === 'completed' && task.actualFocusMinutes > 0 && <span className="flex items-center gap-1"><Clock className="h-4 w-4" />Actual {Math.round(task.actualFocusMinutes * 10) / 10} min</span>}
+              {effectiveStatus !== 'completed' && task.estimationSource === 'adaptive' && <span title="Based on your completed focus sessions" className="rounded-full bg-orange-50 px-2 py-1 text-sm text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">Personalized</span>}
+              <span className={`rounded border px-2.5 py-1 text-xs font-semibold uppercase md:text-sm ${priorityColor[task.priority] || priorityColor.medium}`}>
                 {task.priority || 'medium'} priority
               </span>
-              {task.scheduledDate && (
-                <span className="text-[11px] text-slate-500 font-mono">
-                  📅 {new Date(task.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-              )}
             </div>
+            {effectiveStatus === 'missed' && (
+              <p className="mt-2 text-sm font-medium text-red-500 dark:text-red-400">This task's scheduled date has passed. Reschedule it before continuing.</p>
+            )}
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          {task.status !== 'completed' && (
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
+          {effectiveStatus === 'missed' ? (
+            onRescue && (
+              <ElectricButton variant="rescueCompact" size="sm" icon={Zap} onClick={() => onRescue(task)}>
+                Rescue to Reschedule
+              </ElectricButton>
+            )
+          ) : effectiveStatus === 'completed' ? (
+            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Completed</span>
+          ) : (
             <>
               {onOpenTimer && (
                 <ElectricButton
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   icon={Play}
                   onClick={() => onOpenTimer(task)}
                 >
@@ -134,7 +147,7 @@ const TaskCard = ({ task, onStart, onComplete, onOpenTimer }) => {
 
               <ElectricButton
                 variant="success"
-                size="sm"
+                size="md"
                 icon={CheckCircle2}
                 onClick={handleComplete}
               >

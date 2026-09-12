@@ -1,3 +1,4 @@
+import AdaptivePaceCard from '../components/AdaptivePaceCard';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { BarChart3, CheckCircle2, AlertTriangle, Clock, Flame, ShieldCheck, Zap, RefreshCw } from 'lucide-react';
@@ -47,6 +48,7 @@ const AnalyticsPage = () => {
         <p className="text-xs text-slate-600 dark:text-slate-400">Track your consistency, focus sessions, and plan recovery history.</p>
       </div>
 
+      <AdaptivePaceCard pace={analytics?.learningPace} />
       {/* METRICS CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <ElectricCard>

@@ -265,6 +265,20 @@
   }
 }
 
+@keyframes heroEnergyDrift {
+
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    opacity: 0.58;
+    transform: translate3d(8px, -4px, 0) scale(1.03);
+  }
+}
+
 @keyframes rescuePulse {
 
   0%,
@@ -353,6 +367,315 @@
   -webkit-text-fill-color: transparent;
 }
 
+/* Landing hero accents stay quiet until the user interacts with the CTA. */
+.hero-copy {
+  position: relative;
+}
+
+.hero-copy::before {
+  content: '';
+  position: absolute;
+  top: -5rem;
+  left: -4rem;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(251 146 60 / 0.12), transparent 68%);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.hero-copy::after {
+  content: '';
+  position: absolute;
+  left: 3rem;
+  bottom: 1.5rem;
+  width: 8rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(251 146 60 / 0.22), rgb(251 191 36 / 0.08), transparent);
+  filter: blur(0.5px);
+  transform: rotate(-3deg);
+  pointer-events: none;
+}
+
+.hero-badge {
+  box-shadow: 0 0 24px rgb(249 115 22 / 0.08);
+  background-image: linear-gradient(100deg, rgb(255 247 237 / 0.72), transparent 72%);
+}
+
+.hero-rescue-word {
+  filter: drop-shadow(0 0 18px rgb(249 115 22 / 0.12));
+}
+
+.hero-primary-button,
+.hero-secondary-button {
+  min-width: 11rem;
+}
+
+.hero-primary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(249 115 22 / 0.28), 0 0 18px rgb(251 191 36 / 0.14);
+}
+
+.hero-secondary-button {
+  background: rgb(255 255 255 / 0.86);
+  color: #1e293b;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.06);
+}
+
+.hero-secondary-button:hover {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+.hero-secondary-button svg {
+  transition: transform 200ms ease;
+}
+
+.hero-secondary-button:hover svg {
+  transform: translateX(2px) scale(1.05);
+}
+
+.hero-preview {
+  box-shadow: 0 24px 48px rgb(124 45 18 / 0.1), 0 0 0 1px rgb(249 115 22 / 0.08);
+}
+
+.hero-preview-glow {
+  animation: heroEnergyDrift 7s ease-in-out infinite;
+}
+
+.hero-preview::before {
+  content: '';
+  position: absolute;
+  top: 4.25rem;
+  right: -3rem;
+  width: 12rem;
+  height: 3rem;
+  background: linear-gradient(100deg, transparent, rgb(251 146 60 / 0.08), transparent);
+  filter: blur(14px);
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.hero-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(251 146 60 / 0.16);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Study plans page accents keep the existing cards and controls intact. */
+.plans-page {
+  isolation: isolate;
+}
+
+.plans-page::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -5rem;
+  right: -7rem;
+  width: 22rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(251 146 60 / 0.09), transparent 68%);
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+.plans-create-button {
+  position: relative;
+}
+
+.plans-create-button:hover {
+  transform: translateY(-1px);
+}
+
+.plans-filter-tab {
+  border: 1px solid transparent;
+}
+
+.plans-filter-tab:hover {
+  border-color: rgb(251 146 60 / 0.24);
+}
+
+.plans-filter-tab.bg-orange-50 {
+  box-shadow: 0 0 16px rgb(249 115 22 / 0.1);
+}
+
+.plans-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.plans-card:hover {
+  box-shadow: 0 12px 28px rgb(124 45 18 / 0.1), 0 0 0 1px rgb(249 115 22 / 0.08);
+}
+
+.plans-card-active {
+  border-color: rgb(253 186 116 / 0.8) !important;
+  box-shadow: 0 8px 24px rgb(249 115 22 / 0.14), 0 0 0 1px rgb(251 146 60 / 0.12), 0 0 22px rgb(251 191 36 / 0.06);
+}
+
+.plans-card-active::before {
+  content: '';
+  position: absolute;
+  inset: 0.5rem;
+  border: 1px solid rgb(251 191 36 / 0.12);
+  border-radius: 0.9rem;
+  pointer-events: none;
+}
+
+.plans-card-active:hover {
+  box-shadow: 0 14px 32px rgb(124 45 18 / 0.14), 0 0 0 1px rgb(249 115 22 / 0.18), 0 0 28px rgb(251 146 60 / 0.12);
+}
+
+.plans-card::after {
+  content: '';
+  position: absolute;
+  inset-inline: 1.5rem;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(251 146 60 / 0.2), transparent);
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+
+.plans-card:hover::after {
+  opacity: 1;
+}
+
+.plans-health-badge {
+  display: inline-flex;
+  border-radius: 9999px;
+  transition: filter 200ms ease;
+}
+
+.plans-card:hover .plans-health-badge {
+  filter: drop-shadow(0 0 6px rgb(249 115 22 / 0.12));
+}
+
+.plans-progress-track {
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.08);
+}
+
+.plans-progress-fill {
+  position: relative;
+  box-shadow: 0 0 8px rgb(249 115 22 / 0.16), inset 0 1px rgb(255 247 237 / 0.3);
+}
+
+.plans-progress-fill-active {
+  box-shadow: 0 0 10px rgb(249 115 22 / 0.24), inset 0 1px rgb(255 247 237 / 0.38);
+}
+
+.plans-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 1px 0 auto;
+  height: 1px;
+  background: rgb(255 247 237 / 0.35);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .hero-secondary-button svg,
+  .hero-primary-button,
+  .hero-preview-glow,
+  .plans-create-button,
+  .plans-card::after {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Global readable product surfaces */
+.app-shell h1,
+.app-shell h2,
+.workflow-surface h2,
+.auth-surface h2 {
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.app-shell h3,
+.workflow-surface h3 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.app-shell .text-xs,
+.workflow-surface .text-xs,
+.auth-surface .text-xs,
+.modal-surface .text-xs {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.app-shell [class~="text-[10px]"],
+.app-shell [class~="text-[11px]"],
+.workflow-surface [class~="text-[10px]"],
+.workflow-surface [class~="text-[11px]"],
+.modal-surface [class~="text-[10px]"],
+.modal-surface [class~="text-[11px]"] {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.app-shell label,
+.workflow-surface label,
+.auth-surface label,
+.modal-surface label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.app-shell input,
+.app-shell select,
+.app-shell textarea,
+.workflow-surface input,
+.workflow-surface select,
+.workflow-surface textarea,
+.auth-surface input,
+.auth-surface select,
+.auth-surface textarea,
+.modal-surface input,
+.modal-surface select,
+.modal-surface textarea {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.app-shell button:focus-visible,
+.workflow-surface button:focus-visible,
+.auth-surface button:focus-visible,
+.modal-surface button:focus-visible,
+.app-shell a:focus-visible,
+.workflow-surface a:focus-visible,
+.auth-surface a:focus-visible,
+.modal-surface a:focus-visible {
+  outline: 2px solid rgb(249 115 22 / 0.65);
+  outline-offset: 2px;
+}
+
+html:not(.dark) .app-shell .text-slate-400,
+html:not(.dark) .workflow-surface .text-slate-400 {
+  color: #475569;
+}
+
+html:not(.dark) .app-shell .text-slate-300,
+html:not(.dark) .workflow-surface .text-slate-300 {
+  color: #334155;
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -395,4 +718,144 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+/* Keep browser autofill aligned with the registration theme. */
+.register-input:-webkit-autofill,
+.register-input:-webkit-autofill:hover,
+.register-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out 0s;
+}
+.dark .register-input:-webkit-autofill,
+.dark .register-input:-webkit-autofill:hover,
+.dark .register-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  caret-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0 1000px #020617 inset;
+  box-shadow: 0 0 0 1000px #020617 inset;
+}
+@media (prefers-reduced-motion: reduce) {
+  .register-input,
+  .register-input + button { transition-duration: 0.01ms !important; }
+}
+
+/* Register-only orange energy atmosphere. */
+.register-energy-field {
+  background:
+    radial-gradient(circle at 48% 38%, rgb(255 247 237 / 0.88), transparent 32%),
+    radial-gradient(circle at 12% 8%, rgb(251 146 60 / 0.11), transparent 28%),
+    radial-gradient(circle at 88% 88%, rgb(251 191 36 / 0.1), transparent 30%);
+}
+.register-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(52px);
+  opacity: 0.42;
+  will-change: transform;
+  animation: registerGlowDrift 12s ease-in-out infinite alternate;
+}
+.register-glow-top {
+  inset: -8rem auto auto 18%;
+  width: 24rem;
+  height: 20rem;
+  background: radial-gradient(circle, rgb(251 146 60 / 0.28), transparent 68%);
+}
+.register-glow-bottom {
+  inset: auto 5% -9rem auto;
+  width: 27rem;
+  height: 23rem;
+  background: radial-gradient(circle, rgb(245 158 11 / 0.2), transparent 70%);
+  animation-delay: -5s;
+}
+.register-electric-streak {
+  position: absolute;
+  color: rgb(249 115 22 / 0.18);
+  filter: drop-shadow(0 0 7px rgb(251 146 60 / 0.16));
+}
+.register-electric-streak-left {
+  left: max(-5rem, -4vw);
+  top: 2%;
+  width: min(25vw, 22rem);
+}
+.register-electric-streak-right {
+  right: max(-5rem, -3vw);
+  bottom: 0;
+  width: min(29vw, 26rem);
+}
+.register-spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fb923c;
+  box-shadow: 0 0 10px 3px rgb(251 146 60 / 0.2);
+  opacity: 0.42;
+}
+.register-spark-one { left: 21%; top: 27%; }
+.register-spark-two { right: 19%; bottom: 24%; }
+.register-brand-halo {
+  position: relative;
+  isolation: isolate;
+  padding: 0.35rem 0.75rem;
+}
+.register-brand-halo::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -1.1rem 20% -1rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(251 146 60 / 0.24), transparent 70%);
+  filter: blur(14px);
+}
+.register-brand img {
+  width: 3.15rem;
+  height: 3.15rem;
+  box-shadow: 0 8px 24px rgb(249 115 22 / 0.22);
+}
+.register-brand span.text-lg {
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+.register-card::before {
+  content: '';
+  position: absolute;
+  inset: 0.6rem 1.25rem auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(251 146 60 / 0.42), transparent);
+  pointer-events: none;
+}
+.register-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 12% -1rem -1rem;
+  border-radius: inherit;
+  background: rgb(249 115 22 / 0.07);
+  filter: blur(22px);
+  pointer-events: none;
+}
+.dark .register-energy-field {
+  background:
+    radial-gradient(circle at 50% 38%, rgb(124 45 18 / 0.16), transparent 34%),
+    radial-gradient(circle at 10% 10%, rgb(249 115 22 / 0.1), transparent 30%),
+    radial-gradient(circle at 90% 88%, rgb(245 158 11 / 0.08), transparent 32%);
+}
+.dark .register-electric-streak { color: rgb(251 146 60 / 0.2); }
+.dark .register-brand-halo::before { background: radial-gradient(circle, rgb(249 115 22 / 0.2), transparent 70%); }
+@keyframes registerGlowDrift {
+  from { transform: translate3d(-8px, 0, 0) scale(0.98); }
+  to { transform: translate3d(10px, 7px, 0) scale(1.04); }
+}
+@media (max-width: 640px) {
+  .register-electric-streak-left { left: -5.5rem; width: 13rem; opacity: 0.72; }
+  .register-electric-streak-right { right: -6rem; width: 16rem; opacity: 0.7; }
+  .register-glow-top { left: -7rem; }
+  .register-brand img { width: 2.9rem; height: 2.9rem; }
+  .register-brand span.text-lg { font-size: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .register-glow { animation: none; }
 }

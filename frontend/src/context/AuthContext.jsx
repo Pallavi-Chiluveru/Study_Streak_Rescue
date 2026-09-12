@@ -1,7 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AuthContext } from './authContext.js';
 import API from '../services/api';
-
-const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -15,9 +14,9 @@ export const AuthProvider = ({ children }) => {
       if (user && user.token) {
         try {
           const res = await API.get('/auth/me');
-          setUser(prev => ({ ...prev, ...res.data }));
+          setUser(prev => prev?.token === user.token ? { ...prev, ...res.data } : prev);
         } catch (error) {
-          console.error('Session check failed:', error);
+
           logout();
         }
       }
@@ -59,5 +58,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => useContext(AuthContext);

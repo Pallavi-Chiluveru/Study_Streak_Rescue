@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -7,9 +7,12 @@ import FocusTimer from '../components/tasks/FocusTimer';
 import EmptyState from '../components/ui/EmptyState';
 import ScheduleDateGroup from '../components/schedule/ScheduleDateGroup';
 import { groupTasksByScheduledDate } from '../utils/dateUtils';
+import { formatDuration, pluralize } from '../utils/duration';
 
 const TodayPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoStartedTask = useRef(null);
   const { addToast } = useToast();
 
   const [todayData, setTodayData] = useState(null);
@@ -32,17 +35,38 @@ const TodayPage = () => {
     fetchTodayData();
   }, []);
 
-  const handleTaskComplete = async (task, actualFocusMinutes) => {
+  const handleTaskComplete = async (task, focusSession = false) => {
     try {
-      const res = await API.patch(`/tasks/${task._id}/complete`, { actualFocusMinutes });
-      addToast(`⚡ Task completed! +${res.data.xpGained} XP`, 'electric');
+      const res = await API.patch(`/tasks/${task._id}/complete`, { focusSession });
+      addToast('Task completed! +' + res.data.xpGained + ' XP', 'electric');
+      res.data.gamification?.newlyUnlocked?.forEach((achievement) => addToast(achievement.title + ' unlocked! +' + achievement.rewardXP + ' XP', achievement.rewardXP >= 300 ? 'major' : 'success'));
+      if (res.data.gamification?.levelUp) addToast('Level up! Level ' + res.data.gamification.level.level + ': ' + res.data.gamification.level.name, 'major');
       fetchTodayData();
+      return true;
     } catch (error) {
       console.error('Task complete error:', error);
-      addToast('Failed to mark task complete', 'error');
+      addToast(error.response?.data?.message || 'Failed to mark task complete', 'error');
+      return false;
     }
   };
 
+  const handleOpenTimer = async (task) => {
+    try {
+      const response = await API.patch(`/tasks/${task._id}/start`);
+      setTimerTask(response.data);
+    } catch (error) {
+      addToast(error.response?.data?.message || 'Unable to start this focus session', 'error');
+    }
+  };
+
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (!taskId || !todayData?.tasks || autoStartedTask.current === taskId) return;
+    const task = todayData.tasks.find(item => item._id === taskId);
+    if (!task) return;
+    autoStartedTask.current = taskId;
+    handleOpenTimer(task);
+  }, [todayData, searchParams]);
   if (loading) {
     return (
       <div className="py-20 text-center text-slate-400">
@@ -66,17 +90,17 @@ const TodayPage = () => {
             TODAY FOCUS MODE
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Study Timeline ({tasks.length} Items)
+            Study Timeline ({pluralize(tasks.length, 'item')})
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            {completedCount} Completed • {Math.floor(remainingMinutes / 60)}h {remainingMinutes % 60}m Remaining
+            {pluralize(completedCount, 'task')} completed<span className="mx-1" aria-hidden="true">·</span>{formatDuration(remainingMinutes)} remaining
           </p>
         </div>
       </div>
 
       {tasks.length === 0 ? (
         <EmptyState
-          title="🎉 You're Clear For Today!"
+          title="You're clear for today!"
           description="You have finished all tasks scheduled for today or don't have any active plans yet."
           actionLabel="Create A Plan"
           onAction={() => navigate('/plans/new')}
@@ -89,13 +113,14 @@ const TodayPage = () => {
               date={group.date}
               tasks={group.tasks}
               onComplete={(task) => handleTaskComplete(task)}
-              onOpenTimer={(task) => setTimerTask(task)}
+              onOpenTimer={handleOpenTimer}
             />
           ))}
         </div>
       )}
 
       <FocusTimer
+        key={timerTask?._id || "closed"}
         task={timerTask}
         isOpen={!!timerTask}
         onClose={() => setTimerTask(null)}
@@ -106,3 +131,5 @@ const TodayPage = () => {
 };
 
 export default TodayPage;
+
+

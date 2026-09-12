@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Calendar, CheckSquare, BarChart3, Award, Plus } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, BarChart3, Plus, Target } from 'lucide-react';
 
 const MobileNavigation = () => {
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Plans', path: '/plans', icon: Calendar },
+    { label: 'Goals', path: '/goals', icon: Target },
     { label: 'Create', path: '/plans/new', icon: Plus, isCta: true },
     { label: 'Today', path: '/today', icon: CheckSquare },
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
@@ -33,8 +33,7 @@ const MobileNavigation = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 text-[10px] font-medium transition-colors ${
-                  isActive ? 'text-orange-400' : 'text-slate-400'
+                `flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 ${isActive ? 'text-orange-600 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'
                 }`
               }
             >
@@ -49,3 +48,4 @@ const MobileNavigation = () => {
 };
 
 export default MobileNavigation;
+

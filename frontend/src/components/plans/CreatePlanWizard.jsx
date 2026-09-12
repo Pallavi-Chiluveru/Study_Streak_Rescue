@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import { getEffectiveEstimatedMinutes } from '../../utils/taskEstimates';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Check, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, ShieldCheck, Clock, Calendar, Tag, Plus } from 'lucide-react';
+import { Zap, Check, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, ShieldCheck, Tag, Plus, X, LoaderCircle } from 'lucide-react';
 import ElectricButton from '../ui/ElectricButton';
 import ElectricCard from '../ui/ElectricCard';
 import API from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { addCalendarDays, formatDateKey } from '../../utils/dateUtils';
 
 const CreatePlanWizard = () => {
   const navigate = useNavigate();
@@ -19,13 +21,15 @@ const CreatePlanWizard = () => {
   const [category, setCategory] = useState('Interview Preparation');
   const [description, setDescription] = useState('');
   const [topicInput, setTopicInput] = useState('');
-  const [topics, setTopics] = useState(['Java OOP', 'Collections', 'Multithreading', 'SQL', 'REST APIs']);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [topics, setTopics] = useState([]);
+  const [suggestedTopics, setSuggestedTopics] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState('');
+  const [suggestionContextKey, setSuggestionContextKey] = useState('');
+  const [startDate, setStartDate] = useState(formatDateKey(new Date()));
 
   // Default deadline 6 days from today
-  const defaultDeadline = new Date();
-  defaultDeadline.setDate(defaultDeadline.getDate() + 6);
-  const [deadline, setDeadline] = useState(defaultDeadline.toISOString().split('T')[0]);
+  const [deadline, setDeadline] = useState(formatDateKey(addCalendarDays(new Date(), 6)));
 
   const [availableHours, setAvailableHours] = useState('3');
   const [sessionLength, setSessionLength] = useState('45');
@@ -41,17 +45,71 @@ const CreatePlanWizard = () => {
     'Research', 'Skill Learning', 'Custom'
   ];
 
-  const handleAddTopic = () => {
-    if (topicInput.trim() && !topics.includes(topicInput.trim())) {
-      setTopics([...topics, topicInput.trim()]);
-      setTopicInput('');
+  const normalizeTopic = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+  const hasTopic = (items, value) => {
+    const key = normalizeTopic(value).toLocaleLowerCase();
+    return items.some(item => item.toLocaleLowerCase() === key);
+  };
+
+  const addTopic = (value) => {
+    const topic = normalizeTopic(value);
+    if (!topic || topics.length >= 20 || hasTopic(topics, topic)) return;
+    setTopics(current => [...current, topic]);
+    setTopicInput('');
+  };
+
+  const handleAddTopic = () => addTopic(topicInput);
+  const addAllSuggestions = () => {
+    setTopics(current => {
+      const next = [...current];
+      for (const suggestion of suggestedTopics) {
+        if (next.length >= 20) break;
+        if (!hasTopic(next, suggestion)) next.push(normalizeTopic(suggestion));
+      }
+      return next;
+    });
+  };
+  const handleRemoveTopic = (topicToRemove) => {
+    setTopics(current => current.filter(topic => topic !== topicToRemove));
+  };
+
+  const goToTopics = () => {
+    if (!title.trim()) {
+      addToast('Please enter a goal title', 'warning');
+      return;
     }
+    setStep(2);
   };
 
-  const handleRemoveTopic = (tToRemove) => {
-    setTopics(topics.filter(t => t !== tToRemove));
-  };
+  const currentSuggestionContext = JSON.stringify({
+    goalTitle: title.trim(),
+    category: category.trim(),
+    description: description.trim()
+  });
 
+  useEffect(() => {
+    if (step !== 2 || !title.trim() || suggestionContextKey === currentSuggestionContext) return;
+    let active = true;
+    setSuggestedTopics([]);
+    setSuggestionsError('');
+    setSuggestionsLoading(true);
+
+    API.post('/plans/suggest-topics', JSON.parse(currentSuggestionContext))
+      .then(response => {
+        if (active) setSuggestedTopics(Array.isArray(response.data.suggestedTopics) ? response.data.suggestedTopics : []);
+      })
+      .catch(() => {
+        if (active) setSuggestionsError("We couldn't generate suggestions right now. You can still add topics manually.");
+      })
+      .finally(() => {
+        if (active) {
+          setSuggestionContextKey(currentSuggestionContext);
+          setSuggestionsLoading(false);
+        }
+      });
+
+    return () => { active = false; };
+  }, [step, title, currentSuggestionContext, suggestionContextKey]);
   const handleGeneratePreview = async () => {
     if (!title) {
       addToast('Please enter a goal title', 'warning');
@@ -129,7 +187,7 @@ const CreatePlanWizard = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4">
+    <div className="workflow-surface max-w-4xl mx-auto py-6 px-4">
       {/* Wizard Header Progress Bar */}
       {step !== 5 && (
         <div className="mb-8">
@@ -223,8 +281,8 @@ const CreatePlanWizard = () => {
           </div>
 
           <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
-            <ElectricButton variant="primary" size="md" icon={null} onClick={() => setStep(2)} className="h-11 px-5 text-sm">
-              <span>Next: Add Topics</span> <ArrowRight className="h-4 w-4" />
+            <ElectricButton variant="primary" size="md" icon={null} onClick={goToTopics} className="h-11 px-5 text-sm whitespace-nowrap">
+              <span>Next: Add Topics</span> <ArrowRight className="h-4 w-4 shrink-0" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -241,48 +299,90 @@ const CreatePlanWizard = () => {
             <p className="text-xs text-slate-400 mt-1">Add key modules or topics for AI micro-breakdown.</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
-              placeholder="Type topic (e.g. Spring Boot REST APIs)..."
+              placeholder="Type a topic..."
               value={topicInput}
               onChange={(e) => setTopicInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTopic())}
-              className="flex-1 px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-orange-400 text-sm"
+              className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white focus:border-orange-400 focus:outline-none"
             />
-            <ElectricButton variant="secondary" icon={Plus} onClick={handleAddTopic}>
+            <ElectricButton variant="secondary" icon={Plus} onClick={handleAddTopic} disabled={topics.length >= 20}>
               Add Topic
             </ElectricButton>
           </div>
 
-          <div className="flex flex-wrap gap-2 min-h-[80px] p-4 rounded-xl bg-slate-950 border border-slate-800">
-            {topics.length === 0 ? (
-              <span className="text-xs text-slate-500 italic">No topics added yet. AI will infer standard topics from title.</span>
+          <div>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-300">Suggested for your goal</h3>
+                <p className="mt-0.5 text-xs text-slate-500">{title} <span aria-hidden="true">·</span> {category}</p>
+              </div>
+              {!suggestionsLoading && suggestedTopics.some(topic => !hasTopic(topics, topic)) && (
+                <button type="button" onClick={addAllSuggestions} className="text-xs font-semibold text-orange-400 transition hover:text-orange-300">
+                  Add All Suggestions
+                </button>
+              )}
+            </div>
+            {suggestionsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-orange-300">
+                <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                <span>Finding topics for &quot;{title}&quot;...</span>
+              </div>
+            ) : suggestionsError ? (
+              <p className="text-sm text-amber-300">{suggestionsError}</p>
             ) : (
-              topics.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-950/50 border border-orange-500/40 text-orange-200 text-xs font-medium"
-                >
-                  <Tag className="w-3 h-3 text-orange-400" />
-                  {t}
+              <div className="flex flex-wrap gap-2">
+                {suggestedTopics.filter(topic => !hasTopic(topics, topic)).map(topic => (
                   <button
-                    onClick={() => handleRemoveTopic(t)}
-                    className="ml-1 text-slate-400 hover:text-red-400 text-sm font-bold"
+                    key={topic}
+                    type="button"
+                    onClick={() => addTopic(topic)}
+                    disabled={topics.length >= 20}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-orange-400 hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    ×
+                    <Plus className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    {topic}
                   </button>
-                </span>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Your Topics</h3>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{topics.length}/20</span>
+            </div>
+            <div className="flex min-h-[96px] flex-wrap content-start gap-2.5 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4 shadow-inner shadow-slate-200/40 dark:border-slate-700 dark:bg-slate-950 dark:shadow-black/20">
+              {topics.length === 0 ? (
+                <span className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">No topics selected yet. Add your own or choose a suggestion.</span>
+              ) : topics.map(topic => (
+                <span
+                  key={topic}
+                  className="inline-flex h-fit max-w-full items-center gap-2.5 rounded-full border-2 border-orange-400 bg-orange-100 px-4 py-2 text-sm font-semibold leading-5 text-orange-950 shadow-sm shadow-orange-200/60 transition duration-150 hover:-translate-y-0.5 hover:border-orange-500 hover:shadow-md active:translate-y-0 dark:border-orange-400/80 dark:bg-orange-500/30 dark:text-orange-50 dark:shadow-orange-950/30 dark:hover:border-orange-300"
+                >
+                  <Tag className="h-4 w-4 shrink-0 text-orange-600 dark:text-orange-300" aria-hidden="true" />
+                  <span className="min-w-0 break-words">{topic}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTopic(topic)}
+                    aria-label={'Remove ' + topic}
+                    className="ml-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-orange-700 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 active:scale-95 dark:text-orange-100 dark:hover:bg-red-500/25 dark:hover:text-red-100 dark:focus-visible:ring-offset-slate-950"
+                  >
+                    <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(1)} className="h-11 px-5 text-sm">
-              <ArrowLeft className="h-4 w-4" /> <span>Back</span>
+            <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(1)} className="h-11 px-5 text-sm whitespace-nowrap">
+              <ArrowLeft className="h-4 w-4 shrink-0" /> <span>Back</span>
             </ElectricButton>
-            <ElectricButton variant="primary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm">
-              <span>Next: Availability</span> <ArrowRight className="h-4 w-4" />
+            <ElectricButton variant="primary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm whitespace-nowrap">
+              <span>Next: Availability</span> <ArrowRight className="h-4 w-4 shrink-0" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -356,11 +456,11 @@ const CreatePlanWizard = () => {
           </div>
 
           <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(2)} className="h-11 px-5 text-sm">
-              <ArrowLeft className="h-4 w-4" /> <span>Back</span>
+            <ElectricButton variant="secondary" size="md" icon={null} onClick={goToTopics} className="h-11 px-5 text-sm whitespace-nowrap">
+              <ArrowLeft className="h-4 w-4 shrink-0" /> <span>Back</span>
             </ElectricButton>
             <ElectricButton variant="primary" size="md" icon={null} onClick={handleGeneratePreview} className="h-11 px-5 text-sm whitespace-nowrap">
-              <span>Generate Plan</span> <ArrowRight className="h-4 w-4" />
+              <span>Next: Review</span> <ArrowRight className="h-4 w-4 shrink-0" />
             </ElectricButton>
           </div>
         </ElectricCard>
@@ -431,7 +531,7 @@ const CreatePlanWizard = () => {
                     </div>
                   </div>
                   <div className="text-slate-400 font-mono text-right flex-shrink-0">
-                    <div>{t.estimatedMinutes} mins</div>
+                    <div>{getEffectiveEstimatedMinutes(t)} mins</div>
                     <div className="text-[10px] text-orange-400 uppercase">{t.priority}</div>
                   </div>
                 </div>
@@ -439,11 +539,11 @@ const CreatePlanWizard = () => {
             </div>
 
             <div className="mt-6 flex flex-col gap-3 border-t border-slate-800 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm">
-                <ArrowLeft className="h-4 w-4" /> <span>Edit Parameters</span>
+              <ElectricButton variant="secondary" size="md" icon={null} onClick={() => setStep(3)} className="h-11 px-5 text-sm whitespace-nowrap">
+                <ArrowLeft className="h-4 w-4 shrink-0" /> <span>Back</span>
               </ElectricButton>
               <ElectricButton variant="primary" size="md" icon={null} onClick={handleSavePlan} disabled={loading} className="h-11 px-5 text-sm whitespace-nowrap">
-                <span>{loading ? 'Saving Schedule...' : 'Save & Launch Schedule'}</span> <ArrowRight className="h-4 w-4" />
+                <span>{loading ? 'Creating Plan...' : 'Create My Plan'}</span> <ArrowRight className="h-4 w-4 shrink-0" />
               </ElectricButton>
             </div>
           </ElectricCard>

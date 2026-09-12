@@ -13,13 +13,13 @@ const ElectricButton = ({
   type = 'button',
   ...props
 }) => {
-  const baseStyles = 'relative inline-flex items-center justify-center font-semibold transition-all duration-300 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-orange-500/30 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed';
+  const baseStyles = 'relative inline-flex items-center justify-center whitespace-nowrap font-semibold transition-all duration-300 rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed';
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs gap-1.5',
-    md: 'px-5 py-2.5 text-sm gap-2',
-    lg: 'px-6 py-3.5 text-base gap-2.5',
-    rescue: 'px-8 py-4 text-lg gap-3 rounded-2xl'
+    sm: 'h-9 px-3 text-sm gap-1.5',
+    md: 'h-11 px-5 text-sm md:text-base gap-2',
+    lg: 'h-11 px-5 text-sm md:text-base gap-2',
+    rescue: 'h-11 px-5 text-sm md:text-base gap-2 rounded-xl'
   };
 
   const variantStyles = {
@@ -43,9 +43,9 @@ const ElectricButton = ({
       <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 animate-energy-flow pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center justify-center text-center">
-        <div className="flex items-center gap-2">
-          {Icon && <Icon className="h-4 w-4 shrink-0" />}
-          <span>{children}</span>
+        <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+          {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+          <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">{children}</span>
         </div>
         {subtitle && (
           <span className="text-xs font-normal opacity-85 mt-0.5 tracking-wide text-orange-100">

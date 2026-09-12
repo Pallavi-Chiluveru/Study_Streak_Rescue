@@ -1,6 +1,6 @@
 import React from 'react';
 import ElectricCard from '../components/ui/ElectricCard';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authContext.js';
 
 const ProfilePage = () => {
     const { user } = useAuth();

@@ -9,7 +9,7 @@ const { getAvailableDays, getStartOfDay } = require('../utils/dateUtils');
  */
 const calculatePlanHealth = (plan, tasks = []) => {
   if (!tasks || tasks.length === 0) {
-    return { healthScore: 100, healthStatus: 'Excellent', label: '90-100 Excellent' };
+    return { healthScore: 100, healthStatus: 'On Track', label: '80-100 On Track' };
   }
 
   const totalTasks = tasks.length;
@@ -55,17 +55,14 @@ const calculatePlanHealth = (plan, tasks = []) => {
     healthScore = Math.min(healthScore, 48);
   }
 
-  let healthStatus = 'Excellent';
-  if (healthScore >= 90) {
-    healthStatus = 'Excellent';
-  } else if (healthScore >= 70) {
+  let healthStatus = 'Slipping';
+  if (healthScore >= 80) {
     healthStatus = 'On Track';
-  } else if (healthScore >= 50) {
+  } else if (healthScore >= 60) {
+    healthStatus = 'Needs Attention';
+  } else if (healthScore >= 40) {
     healthStatus = 'At Risk';
-  } else {
-    healthStatus = 'Rescue Recommended';
   }
-
   return {
     healthScore,
     healthStatus,

@@ -190,6 +190,6 @@ Study Streak Rescue features a **Premium Electric Energy Visual Theme**:
 * Subject-specific AI quiz flashcard generation.
 
 ---
-
+myaccount.google.com/apppasswords
 ## 📄 License
 ISC License. Built for self-healing productivity.

@@ -1,7 +1,9 @@
+﻿import { getEffectiveEstimatedMinutes } from '../utils/taskEstimates';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Zap, ArrowLeft } from 'lucide-react';
 import API from '../services/api';
+import { formatDuration } from '../utils/duration';
 import { useToast } from '../context/ToastContext';
 import ElectricCard from '../components/ui/ElectricCard';
 import ElectricButton from '../components/ui/ElectricButton';
@@ -41,14 +43,27 @@ const PlanDetailsPage = () => {
     fetchPlanDetails();
   }, [id]);
 
-  const handleTaskComplete = async (task, actualFocusMinutes) => {
+  const handleTaskComplete = async (task, focusSession = false) => {
     try {
-      const res = await API.patch(`/tasks/${task._id}/complete`, { actualFocusMinutes });
-      addToast(`⚡ Task completed! +${res.data.xpGained} XP`, 'electric');
+      const res = await API.patch(`/tasks/${task._id}/complete`, { focusSession });
+      addToast('Task completed! +' + res.data.xpGained + ' XP', 'electric');
+      res.data.gamification?.newlyUnlocked?.forEach((achievement) => addToast(achievement.title + ' unlocked! +' + achievement.rewardXP + ' XP', 'success'));
+      if (res.data.gamification?.levelUp) addToast('Level up! Level ' + res.data.gamification.level.level + ': ' + res.data.gamification.level.name, 'rescue');
       fetchPlanDetails();
+      return true;
     } catch (error) {
       console.error('Task complete error:', error);
-      addToast('Failed to mark task complete', 'error');
+      addToast(error.response?.data?.message || 'Failed to mark task complete', 'error');
+      return false;
+    }
+  };
+
+  const handleOpenTimer = async (task) => {
+    try {
+      const response = await API.patch(`/tasks/${task._id}/start`);
+      setTimerTask(response.data);
+    } catch (error) {
+      addToast(error.response?.data?.message || 'Unable to start this focus session', 'error');
     }
   };
 
@@ -82,24 +97,24 @@ const PlanDetailsPage = () => {
   // Calculate remaining workload hours
   const remainingMinutes = tasks
     .filter(t => t.status !== 'completed')
-    .reduce((sum, t) => sum + (t.estimatedMinutes || 45), 0);
-  const remainingHoursFormatted = `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`;
+    .reduce((sum, t) => sum + (getEffectiveEstimatedMinutes(t)), 0);
+  const remainingHoursFormatted = formatDuration(remainingMinutes);
 
   const scheduledGroups = groupTasksByScheduledDate(tasks);
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="plan-details-page space-y-8 pb-12">
       {/* Top Header & Navigation */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate('/plans')}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Plans
         </button>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <ElectricButton variant="secondary" size="sm" icon={Clock} onClick={() => setShowAdaptModal(true)}>
+          <ElectricButton variant="secondary" size="md" icon={Clock} onClick={() => setShowAdaptModal(true)} className="h-11 text-sm md:text-base">
             I Have Less Time Today
           </ElectricButton>
 
@@ -113,14 +128,14 @@ const PlanDetailsPage = () => {
       <ElectricCard rescueAlert={plan.healthScore < 50} className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
-            <span className="text-xs uppercase font-mono tracking-wider text-orange-400">
+            <span className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-300">
               {plan.category}
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1 mb-2">
+            <h1 className="mt-1 mb-2 text-3xl font-extrabold text-slate-900 dark:text-slate-100 sm:text-4xl">
               {plan.title}
             </h1>
             {plan.description && (
-              <p className="text-sm text-slate-300 max-w-xl">{plan.description}</p>
+              <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">{plan.description}</p>
             )}
           </div>
 
@@ -131,24 +146,24 @@ const PlanDetailsPage = () => {
         </div>
 
         {/* METRICS ROW */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800 font-mono text-xs">
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Target Deadline</span>
-            <span className="text-sm font-bold text-white">
+        <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/80">
+            <span className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-400">Target Deadline</span>
+            <span className="text-base font-bold text-slate-900 dark:text-slate-100 md:text-lg">
               {new Date(plan.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Progress</span>
-            <span className="text-sm font-bold text-emerald-400">{plan.progressPct}% Complete</span>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/80">
+            <span className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-400">Progress</span>
+            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 md:text-lg">{plan.progressPct}% Complete</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Workload Remaining</span>
-            <span className="text-sm font-bold text-orange-300">{remainingHoursFormatted}</span>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/80">
+            <span className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-400">Workload Remaining</span>
+            <span className="text-base font-bold text-orange-600 dark:text-orange-300 md:text-lg">{remainingHoursFormatted}</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Days Remaining</span>
-            <span className="text-sm font-bold text-orange-400">{daysRemaining} Days</span>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/80">
+            <span className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-400">Days Remaining</span>
+            <span className="text-base font-bold text-orange-600 dark:text-orange-400 md:text-lg">{daysRemaining} Days</span>
           </div>
         </div>
       </ElectricCard>
@@ -166,7 +181,8 @@ const PlanDetailsPage = () => {
               date={group.date}
               tasks={group.tasks}
               onComplete={(task) => handleTaskComplete(task)}
-              onOpenTimer={(task) => setTimerTask(task)}
+              onOpenTimer={handleOpenTimer}
+              onRescue={() => setShowRescueModal(true)}
             />
           ))
         )}
@@ -174,6 +190,7 @@ const PlanDetailsPage = () => {
 
       {/* FOCUS TIMER MODAL */}
       <FocusTimer
+        key={timerTask?._id || "closed"}
         task={timerTask}
         isOpen={!!timerTask}
         onClose={() => setTimerTask(null)}
@@ -201,3 +218,4 @@ const PlanDetailsPage = () => {
 };
 
 export default PlanDetailsPage;
+

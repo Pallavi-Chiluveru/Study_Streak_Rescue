@@ -1,23 +1,38 @@
 const pad = (value) => String(value).padStart(2, '0');
 
-export const normalizeDate = (value) => {
-  if (!value) return null;
+export const parseDateOnly = (value) => {
   if (typeof value === 'string') {
-    const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (dateOnly) {
-      return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-    }
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   }
+  return new Date(value);
+};
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : new Date(date.getFullYear(), date.getMonth(), date.getDate());
+export const formatDateKey = (value) => {
+  const date = parseDateOnly(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+export const addCalendarDays = (value, amount) => {
+  const date = parseDateOnly(value);
+  date.setDate(date.getDate() + amount);
+  return date;
+};
+
+export const toLocalDateKey = (value) => {
+  return value ? formatDateKey(value) : null;
+};
+
+export const normalizeDate = (value) => {
+  const key = toLocalDateKey(value);
+  if (!key) return null;
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
 };
 
 export const getDateKey = (value) => {
-  const date = normalizeDate(value);
-  return date ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` : 'unscheduled';
+  return toLocalDateKey(value) || 'unscheduled';
 };
 
 export const getRelativeDateLabel = (value, reference = new Date()) => {
@@ -25,7 +40,9 @@ export const getRelativeDateLabel = (value, reference = new Date()) => {
   const today = normalizeDate(reference);
   if (!date || !today) return 'UNSCHEDULED';
 
-  const dayDifference = Math.round((date.getTime() - today.getTime()) / 86400000);
+  const dayDifference = getDateKey(date) === getDateKey(today)
+    ? 0
+    : Math.round((date.getTime() - today.getTime()) / 86400000);
   if (dayDifference === 0) return 'TODAY';
   if (dayDifference === 1) return 'TOMORROW';
   return date < today ? 'MISSED' : date.toLocaleDateString(undefined, { weekday: 'long' }).toUpperCase();
@@ -36,11 +53,21 @@ export const formatScheduleDate = (value) => {
   return date ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase() : 'UNSCHEDULED';
 };
 
+export const isDateBeforeToday = (value, reference = new Date()) => {
+  const dateKey = toLocalDateKey(value);
+  const todayKey = toLocalDateKey(reference);
+  return Boolean(dateKey && todayKey && dateKey < todayKey);
+};
+
+export const isTaskMissed = (task, reference = new Date()) => (
+  task?.status === 'missed' || (task?.status === 'pending' && isDateBeforeToday(task.scheduledDate, reference))
+);
+
 export const groupTasksByScheduledDate = (tasks = []) => {
   const groups = new Map();
   tasks.forEach((task, index) => {
     const key = getDateKey(task.scheduledDate);
-    if (!groups.has(key)) groups.set(key, { key, date: task.scheduledDate, tasks: [] });
+    if (!groups.has(key)) groups.set(key, { key, date: key, tasks: [] });
     groups.get(key).tasks.push({ task, index });
   });
 

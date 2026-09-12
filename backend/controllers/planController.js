@@ -1,12 +1,54 @@
+const { personalizeTask, getEffectiveEstimatedMinutes } = require('../services/adaptiveEstimationService');
 const Plan = require('../models/Plan');
 const Task = require('../models/Task');
-const { generateTaskBreakdown } = require('../services/groqService');
+const { generateTaskBreakdown, suggestTopics } = require('../services/groqService');
+const { getFallbackTopicSuggestions } = require('../services/topicSuggestionService');
 const { checkFeasibility } = require('../services/feasibilityService');
 const { scheduleTasks } = require('../services/schedulingService');
 const { rescuePlan } = require('../services/rescueService');
 const { calculatePlanHealth } = require('../services/healthService');
-const { getStartOfDay } = require('../utils/dateUtils');
+const { getStartOfDay, isBeforeDate, isAfterDate } = require('../utils/dateUtils');
+const { evaluateGamification } = require('../services/gamificationService');
+const { createNotification } = require('../services/notificationService');
+const User = require('../models/User');
 
+const suggestPlanTopics = async (req, res, next) => {
+  try {
+    const { goalTitle, category, description = '' } = req.body;
+    if (typeof goalTitle !== 'string' || !goalTitle.trim() || goalTitle.length > 200) {
+      return res.status(400).json({ message: 'Goal title is required and must be 200 characters or fewer.' });
+    }
+    if (typeof category !== 'string' || !category.trim() || category.length > 100) {
+      return res.status(400).json({ message: 'Category is required and must be 100 characters or fewer.' });
+    }
+    if (typeof description !== 'string' || description.length > 2000) {
+      return res.status(400).json({ message: 'Description must be 2,000 characters or fewer.' });
+    }
+
+    let suggestedTopics;
+    let source = 'groq';
+    try {
+      suggestedTopics = await suggestTopics({
+        goalTitle: goalTitle.trim(),
+        category: category.trim(),
+        description: description.trim()
+      });
+    } catch {
+      console.warn('Topic suggestion AI failed; using fallback.');
+      suggestedTopics = getFallbackTopicSuggestions(goalTitle, category);
+      source = 'fallback';
+    }
+
+    if (!Array.isArray(suggestedTopics) || suggestedTopics.length === 0) {
+      suggestedTopics = getFallbackTopicSuggestions(goalTitle, category);
+      source = 'fallback';
+    }
+
+    res.json({ suggestedTopics, source });
+  } catch (error) {
+    next(error);
+  }
+};
 // @desc    Generate plan task breakdown preview with AI and Feasibility Check
 // @route   POST /api/plans/generate
 // @access  Private
@@ -29,11 +71,11 @@ const generatePlanPreview = async (req, res, next) => {
       return res.status(400).json({ message: 'Title, deadline, and daily available time are required.' });
     }
 
-    const parsedStartDate = startDate ? new Date(startDate) : new Date();
-    const parsedDeadline = new Date(deadline);
+    const parsedStartDate = getStartOfDay(startDate || new Date());
+    const parsedDeadline = getStartOfDay(deadline);
 
-    if (parsedDeadline <= parsedStartDate) {
-      return res.status(400).json({ message: 'Deadline must be after the start date.' });
+    if (isBeforeDate(parsedDeadline, parsedStartDate)) {
+      return res.status(400).json({ message: 'Deadline cannot be before the start date.' });
     }
 
     // Call Groq / fallback service
@@ -47,6 +89,8 @@ const generatePlanPreview = async (req, res, next) => {
       priority: priority || 'medium'
     });
 
+    breakdown.tasks = breakdown.tasks.map(task => personalizeTask(req.user, { ...task, status: 'pending' }));
+    breakdown.estimatedTotalMinutes = breakdown.tasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(task), 0);
     // Check feasibility
     const feasibility = checkFeasibility(
       parsedStartDate,
@@ -95,13 +139,15 @@ const createPlan = async (req, res, next) => {
       tasks
     } = req.body;
 
-    const parsedStartDate = startDate ? new Date(startDate) : new Date();
-    const parsedDeadline = new Date(deadline);
+    const parsedStartDate = getStartOfDay(startDate || new Date());
+    const parsedDeadline = getStartOfDay(deadline);
 
-    // Calculate total estimated minutes
-    const estimatedTotalMinutes = Array.isArray(tasks)
-      ? tasks.reduce((sum, t) => sum + (parseInt(t.estimatedMinutes) || 45), 0)
-      : 0;
+    if (isBeforeDate(parsedDeadline, parsedStartDate)) {
+      return res.status(400).json({ message: 'Deadline cannot be before the start date.' });
+    }
+
+    const personalizedTasks = (Array.isArray(tasks) ? tasks : []).map(task => personalizeTask(req.user, { ...task, status: 'pending' }));
+    const estimatedTotalMinutes = personalizedTasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(task), 0);
 
     const feasibility = checkFeasibility(
       parsedStartDate,
@@ -129,7 +175,10 @@ const createPlan = async (req, res, next) => {
     });
 
     // Schedule tasks across dates
-    const scheduled = scheduleTasks(tasks || [], parsedStartDate, parsedDeadline, parseInt(availableMinutesPerDay));
+    const scheduled = scheduleTasks(personalizedTasks, parsedStartDate, parsedDeadline, parseInt(availableMinutesPerDay));
+    if (scheduled.some((task) => isBeforeDate(task.scheduledDate, parsedStartDate) || isAfterDate(task.scheduledDate, parsedDeadline))) {
+      return res.status(400).json({ message: 'Tasks could not be scheduled within the selected date range.' });
+    }
 
     // Save tasks into DB
     const taskDocs = await Promise.all(
@@ -140,18 +189,23 @@ const createPlan = async (req, res, next) => {
           title: t.title,
           description: t.description || '',
           scheduledDate: t.scheduledDate,
-          estimatedMinutes: t.estimatedMinutes || 45,
+          estimatedMinutes: t.baseEstimatedMinutes,
+          baseEstimatedMinutes: t.baseEstimatedMinutes,
+          adaptiveEstimatedMinutes: t.adaptiveEstimatedMinutes,
+          estimationSource: t.estimationSource,
           priority: t.priority || priority || 'medium',
           difficulty: t.difficulty || difficulty || 'medium',
           status: 'pending'
         })
       )
     );
+    const gamification = await evaluateGamification(req.user._id);
 
     res.status(201).json({
       plan,
       tasks: taskDocs,
-      feasibility
+      feasibility,
+      gamification
     });
   } catch (error) {
     next(error);
@@ -169,7 +223,7 @@ const getPlans = async (req, res, next) => {
     const updatedPlans = await Promise.all(
       plans.map(async (plan) => {
         const tasks = await Task.find({ planId: plan._id });
-        
+
         // Auto check for missed tasks (if scheduledDate < today & status == pending)
         const today = getStartOfDay(new Date());
         let updatedMissed = false;
@@ -185,6 +239,7 @@ const getPlans = async (req, res, next) => {
         const { healthScore, healthStatus } = calculatePlanHealth(plan, freshTasks);
 
         plan.healthScore = healthScore;
+        plan.healthHistory.push({ score: healthScore });
         plan.status = healthScore < 50 ? 'at_risk' : plan.status;
         await plan.save();
 
@@ -234,6 +289,7 @@ const getPlanById = async (req, res, next) => {
     const { healthScore, healthStatus } = calculatePlanHealth(plan, freshTasks);
 
     plan.healthScore = healthScore;
+    plan.healthHistory.push({ score: healthScore });
     await plan.save();
 
     const completedCount = freshTasks.filter(t => t.status === 'completed').length;
@@ -286,10 +342,24 @@ const rescuePlanController = async (req, res, next) => {
     const planId = req.params.id;
 
     const rescueResult = await rescuePlan(planId, req.user._id, updatedAvailableMinutesPerDay);
+    const gamification = await evaluateGamification(req.user._id);
+    try {
+      const user = await User.findById(req.user._id);
+      await createNotification({
+        user, eventType: 'RESCUE_SUCCESS', severity: 'low',
+        dedupeKey: 'RESCUE_SUCCESS:' + planId + ':' + rescueResult.plan.rescueCount,
+        title: 'Plan rescued',
+        message: rescueResult.rescheduledCount + ' remaining task' + (rescueResult.rescheduledCount === 1 ? ' was' : 's were') + ' redistributed.',
+        actionLabel: 'View Plan', actionUrl: '/plans/' + planId, relatedPlanId: planId
+      });
+    } catch {
+      console.error('Rescue notification creation failed.');
+    }
 
     res.json({
       message: 'Plan rescued successfully! ⚡',
-      ...rescueResult
+      ...rescueResult,
+      gamification
     });
   } catch (error) {
     next(error);
@@ -301,7 +371,8 @@ const rescuePlanController = async (req, res, next) => {
 // @access  Private
 const quickAdaptPlan = async (req, res, next) => {
   try {
-    const { todayAvailableMinutes } = req.body; // e.g. 30, 60, 120
+    const { todayAvailableMinutes } = req.body;
+    if (!Number.isFinite(todayAvailableMinutes) || todayAvailableMinutes <= 0) return res.status(400).json({ message: 'Enter a positive available time.' }); // e.g. 30, 60, 120
     const planId = req.params.id;
 
     const plan = await Plan.findOne({ _id: planId, userId: req.user._id });
@@ -323,17 +394,25 @@ const quickAdaptPlan = async (req, res, next) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
+    if (tomorrow > getStartOfDay(plan.deadline) && todayTasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(personalizeTask(req.user, task)), 0) > todayAvailableMinutes) {
+      return res.status(409).json({ message: 'Not enough time before the deadline. Extend the deadline or use Rescue My Plan.' });
+    }
     for (const task of todayTasks) {
-      if (allocated + task.estimatedMinutes <= todayAvailableMinutes) {
-        allocated += task.estimatedMinutes;
+      Object.assign(task, personalizeTask(req.user, task));
+      if (allocated + getEffectiveEstimatedMinutes(task) <= todayAvailableMinutes) {
+        allocated += getEffectiveEstimatedMinutes(task);
       } else {
         // Push task to tomorrow
         task.scheduledDate = tomorrow;
         task.status = 'rescheduled';
-        await task.save();
         movedCount++;
       }
+      await task.save();
     }
+
+    const updatedTasks = await Task.find({ planId });
+    plan.estimatedTotalMinutes = updatedTasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(task), 0);
+    await plan.save();
 
     res.json({
       message: `Adapted today schedule! Moved ${movedCount} task(s) to tomorrow.`,
@@ -345,6 +424,7 @@ const quickAdaptPlan = async (req, res, next) => {
 };
 
 module.exports = {
+  suggestPlanTopics,
   generatePlanPreview,
   createPlan,
   getPlans,

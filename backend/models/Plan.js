@@ -6,6 +6,7 @@ const planSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  goalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Goal', default: null, index: true },
   title: {
     type: String,
     required: [true, 'Plan title is required'],
@@ -70,6 +71,13 @@ const planSchema = new mongoose.Schema({
   rescueCount: {
     type: Number,
     default: 0
+  },
+  healthHistory: [{
+    score: Number,
+    recordedAt: { type: Date, default: Date.now }
+  }],
+  notificationState: {
+    critical: { type: Boolean, default: false }
   }
 }, {
   timestamps: true

@@ -5,7 +5,10 @@ const connectDB = require('./config/db');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ quiet: true });
+
+// Email is optional for startup; failures are reported without provider details.
+void require('./services/emailService').initializeEmailService();
 
 // Connect to MongoDB
 connectDB();
@@ -13,7 +16,7 @@ connectDB();
 const app = express();
 
 // Middleware
-const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
+const allowedOrigins = (process.env.CLIENT_URL || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
@@ -47,6 +50,9 @@ app.use('/api/plans', require('./routes/planRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/gamification', require('./routes/gamificationRoutes'));
+app.use('/api/goals', require('./routes/goalRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // Global Error Handler
 app.use(errorHandler);
@@ -54,5 +60,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`⚡ Study Streak Rescue Server running on port ${PORT}`);
+  console.log('Study Streak Rescue Server listening.');
+  require('./services/notificationScheduler').startNotificationScheduler();
 });
+

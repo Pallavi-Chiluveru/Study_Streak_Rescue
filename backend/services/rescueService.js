@@ -1,6 +1,8 @@
+const User = require('../models/User');
+const { personalizeTask, getEffectiveEstimatedMinutes } = require('./adaptiveEstimationService');
 const Plan = require('../models/Plan');
 const Task = require('../models/Task');
-const { getStartOfDay, getDateRange, getAvailableDays } = require('../utils/dateUtils');
+const { getStartOfDay, getDateRange, getAvailableDays, addCalendarDays, assertDateWithinRange } = require('../utils/dateUtils');
 const { calculatePlanHealth } = require('./healthService');
 const { checkFeasibility } = require('./feasibilityService');
 
@@ -15,6 +17,7 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
     throw new Error('Plan not found');
   }
 
+  const user = await User.findById(userId);
   const allTasks = await Task.find({ planId });
 
   // 1. Completed tasks MUST NEVER change
@@ -45,12 +48,12 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
   // If deadline passed, extend deadline to at least 3 days from today so schedule is realistic
   let targetDeadline = deadline;
   if (deadline < today) {
-    targetDeadline = new Date(today);
-    targetDeadline.setDate(today.getDate() + 3);
+    targetDeadline = addCalendarDays(today, 3);
     plan.deadline = targetDeadline;
   }
 
-  const remainingDates = getDateRange(today, targetDeadline);
+  const scheduleStart = getStartOfDay(plan.startDate) > today ? getStartOfDay(plan.startDate) : today;
+  const remainingDates = getDateRange(scheduleStart, targetDeadline);
   const remainingDaysCount = remainingDates.length;
 
   // 5. Prioritize tasks: High priority first, then medium, then low
@@ -63,7 +66,8 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
   let rescheduledCount = 0;
 
   for (const task of unfinishedTasks) {
-    const taskMinutes = task.estimatedMinutes || 45;
+    Object.assign(task, personalizeTask(user, task));
+    const taskMinutes = getEffectiveEstimatedMinutes(task);
 
     // Shift to next day if daily capacity exceeded and future dates exist
     if (
@@ -79,12 +83,17 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
     currentDayAllocatedMinutes += taskMinutes;
 
     // Convert missed or pending tasks to rescheduled status
-    task.scheduledDate = scheduledDate;
+    task.scheduledDate = assertDateWithinRange(scheduledDate, scheduleStart, targetDeadline);
     task.status = 'rescheduled';
+    task.wasRescheduled = true;
     await task.save();
     rescheduledCount++;
   }
 
+  const remainingEstimatedMinutes = unfinishedTasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(task), 0);
+  const feasibility = checkFeasibility(scheduleStart, targetDeadline, dailyLimit, remainingEstimatedMinutes);
+  plan.feasible = feasibility.isFeasible;
+  plan.estimatedTotalMinutes = remainingEstimatedMinutes + completedTasks.reduce((sum, task) => sum + getEffectiveEstimatedMinutes(task), 0);
   // 7. Update plan state, rescue count and recalculate plan health
   plan.rescueCount = (plan.rescueCount || 0) + 1;
 
@@ -93,6 +102,7 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
   const { healthScore, healthStatus } = calculatePlanHealth(plan, updatedAllTasks);
 
   plan.healthScore = healthScore;
+  plan.healthHistory.push({ score: healthScore });
   plan.status = healthScore < 50 ? 'at_risk' : 'active';
   await plan.save();
 
@@ -105,6 +115,8 @@ const rescuePlan = async (planId, userId, updatedAvailableMinutesPerDay) => {
     rescheduledCount,
     daysRemaining: remainingDaysCount,
     dailyTargetMinutes: dailyLimit,
+    remainingEstimatedMinutes,
+    feasibility,
     newHealthScore: healthScore,
     healthStatus
   };

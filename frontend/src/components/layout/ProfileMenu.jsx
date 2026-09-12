@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { LogOut, Settings, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/authContext.js';
 
 const ProfileMenu = ({ isOpen, onToggle, onClose }) => {
     const { user, logout } = useAuth();
@@ -48,7 +48,7 @@ const ProfileMenu = ({ isOpen, onToggle, onClose }) => {
                 onClick={onToggle}
                 aria-label="Open profile menu"
                 aria-expanded={isOpen}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white font-bold text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/30 dark:bg-slate-900 dark:text-orange-400 dark:hover:bg-orange-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white font-bold text-orange-700 transition-colors hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 dark:border-orange-500/30 dark:bg-slate-900 dark:text-orange-400 dark:hover:bg-orange-500/10 md:h-11 md:w-11"
             >
                 {initial}
             </button>
@@ -58,7 +58,7 @@ const ProfileMenu = ({ isOpen, onToggle, onClose }) => {
                     <div className="px-3 py-2.5">
                         <p className="truncate font-semibold text-slate-900 dark:text-slate-100">{user?.name || 'Learner'}</p>
                         <p className="truncate text-sm text-slate-500 dark:text-slate-400">{user?.email || 'No email available'}</p>
-                        <span className="mt-2 inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300">
+                        <span className="mt-2 inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300">
                             {role}
                         </span>
                     </div>
