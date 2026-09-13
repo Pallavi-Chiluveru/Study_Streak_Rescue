@@ -857,27 +857,38 @@ export default function GoalOnboardingPage() {
                 </div>
               ))}
             </div>
+            {preview?.duplicates?.map((duplicate) => (
+              <div key={duplicate.goalIds.join("-")} className="mt-5 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                <strong>Possible duplicate goals</strong>
+                <p>{duplicate.titles.join(" and ")}</p>
+                <p>{duplicate.message} Go back and keep or merge one goal before building the schedule.</p>
+              </div>
+            ))}
             {preview && !preview.feasible && (
               <div className="mt-5 rounded-xl bg-red-50 p-4 text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                This portfolio does not fit yet. Nothing will be overbooked.
-                Return to adjust goals or availability.
+                This portfolio needs review. Nothing will be overbooked. Return to adjust goals or availability.
               </div>
             )}
             {preview?.strategies?.map((s) => (
-              <div
-                key={s.goalId}
-                className="mt-3 flex justify-between rounded-xl border p-3"
-              >
-                <span>{s.title}</span>
-                <strong>
-                  {pluralize(s.sessions, "session")}
-                  <span className="mx-1" aria-hidden="true">
-                    ·
-                  </span>
-                  {formatDuration(s.minutes)}
-                </strong>
+              <div key={s.goalId} className="mt-3 rounded-xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <strong className="block">{s.title}</strong>
+                    <span className="text-sm capitalize text-slate-500">{s.priority} priority · {s.horizon} term · {s.complexity}</span>
+                  </div>
+                  <strong>{pluralize(s.sessions, "session")} · {formatDuration(s.minutes)}/week</strong>
+                </div>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Why this allocation:</strong> {s.reason}</p>
               </div>
             ))}
+            {preview?.validation?.checks?.length > 0 && (
+              <div className="mt-5 rounded-xl border p-4">
+                <strong>Planning validation</strong>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {preview.validation.checks.map((check) => <li key={check.key}>{check.passed ? "?" : "?"} {check.message}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
         )}
         {step > 0 && (

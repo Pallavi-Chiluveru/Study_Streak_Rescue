@@ -10,6 +10,7 @@ const adaptive = require('./adaptiveEstimationService');
 const { scheduleMasterTasks } = require('./schedulingService');
 const groq = require('./groqService');
 const { goalHealth } = require('./goalPriorityService');
+const { findSemanticDuplicates, planGoalAllocations, validatePlanning } = require('./goalAllocationService');
 const fail = (message,status=409) => { throw Object.assign(new Error(message),{status}); };
 const snapshot = async userId => {
  const [user,goals,tasks,plans]=await Promise.all([User.findById(userId),Goal.find({userId}).sort({_id:1}),Task.find({userId}).sort({_id:1}),Plan.find({userId}).sort({_id:1})]);
@@ -49,24 +50,29 @@ const buildPreview = async (userId, options={}) => {
  const selectedIds=new Set(selected.map(t=>String(t._id)));
  const protectedTasks=state.tasks.filter(t=>!selectedIds.has(String(t._id)) && t.scheduleState!=='held').map(t=>t.toObject());
  const jobs=[], strategies=[], warnings=[];
- if (targetPlan && !targetPlan.goalId) active=[{_id:'quick-plan',title:targetPlan.title,startDate:targetPlan.startDate,deadline:targetPlan.deadline,priority:'high',importance:'important',weeklyMinutes:0,cadence:{type:'flexible'},toObject(){return this;}}];
+ if (targetPlan && !targetPlan.goalId) active=[{_id:'quick-plan',title:targetPlan.title,category:targetPlan.category || 'Skill Development',startDate:targetPlan.startDate,deadline:targetPlan.deadline,priority:'high',importance:'important',currentProgress:0,weeklyMinutes:0,cadence:{type:'flexible'},toObject(){return this;}}];
+ const legalDaysByGoal=new Map(active.map(goal=>[String(goal._id),cadenceDays(goal,legalDays(goal,start,end))]));
+ const duplicates=targetPlan ? [] : findSemanticDuplicates(active);
+ const allocationPlan=planGoalAllocations({goals:active,profile,start,end,legalDaysByGoal,protectedTasks});
+ const allocationByGoal=new Map(allocationPlan.allocations.map(item=>[item.goalId,item]));
  for (const goal of active) {
-  const days=cadenceDays(goal,legalDays(goal,start,end)), count=cadenceCount(goal,days), goalId=String(goal._id);
+  const goalId=String(goal._id), allocation=allocationByGoal.get(goalId), days=legalDaysByGoal.get(goalId), count=allocation.sessions;
   const existing=selected.filter(t=>targetPlan ? String(t.planId)===String(targetPlan._id) : String(t.goalId)===goalId);
   const completed=state.tasks.filter(t=>String(t.goalId)===goalId && t.status==='completed');
   const remaining=goal.totalEstimatedMinutes ? Math.max(0,goal.totalEstimatedMinutes-completed.reduce((s,t)=>s+adaptive.baseEstimate(t),0)) : null;
-  const weeks=goal.deadline ? Math.max(1,dates.getAvailableDays(start,goal.deadline)/7) : 1;
-  const target=Math.max(goal.minimumWeeklyMinutes || 0,goal.weeklyMinutes || 0,remaining===null?0:remaining/weeks);
+  const target=allocation.minutes;
   let content=existing.map(t=>adaptive.personalizeTask(state.user,t)), provider='existing';
   if (!targetPlan && days.length) {
    const enough=()=>content.length>=count && content.reduce((s,t)=>s+adaptive.baseEstimate(t),0)>=target;
    if(!enough()) {
-    const breakdown=await groq.generateTaskBreakdown({title:goal.title,description:`${goal.description || ''} Outcome: ${goal.mainOutcome || ''}. Current level: ${goal.currentLevel || 'unspecified'}. Upcoming week only. Completed work: ${completed.slice(-10).map(t=>t.title).join('; ')}`,sessionLength:profile.preferredSessionMinutes,priority:goal.priority});
+    const breakdown=await groq.generateTaskBreakdown({title:goal.title,description:`${goal.description || ''} Outcome: ${goal.mainOutcome || ''}. Category: ${goal.category}. Complexity: ${allocation.complexity}. Include an appropriate mix of: ${allocation.workTypes.join(', ')}. Current level: ${goal.currentLevel || 'unspecified'}. Upcoming week only. Completed work: ${completed.slice(-10).map(t=>t.title).join('; ')}`,sessionLength:allocation.sessionMinutes || profile.preferredSessionMinutes,priority:goal.priority});
     provider=breakdown.provider;
     let index=0;
     while(!enough() && content.length<112) {
      const source=breakdown.tasks[index%breakdown.tasks.length];
-     const base=Math.min(90,Math.max(5,source.estimatedMinutes));
+     const allocatedSoFar=content.reduce((sum,task)=>sum+adaptive.baseEstimate(task),0);
+     const sessionsLeft=Math.max(1,count-content.length);
+     const base=Math.min(90,Math.max(5,Math.ceil(Math.max(5,target-allocatedSoFar)/sessionsLeft/5)*5));
      content.push(adaptive.personalizeTask(state.user,{title:source.title+(index>=breakdown.tasks.length?' - continued practice':''),description:source.description,estimatedMinutes:base,priority:goal.priority,difficulty:source.difficulty,goalId}));index++;
     }
    }
@@ -76,14 +82,17 @@ const buildPreview = async (userId, options={}) => {
   if(content.length<count) warnings.push(`${goal.title}: cadence needs more sessions than its available work.`);
   const keys=days.map(d=>dates.formatDateString(d));
   content.forEach((task,index)=>jobs.push({goal,task:{...task,_id:task._id ? String(task._id):undefined,planId:task.planId ? String(task.planId):undefined},targetMinutes:target,allowedDates:keys,distinctDay:index<count}));
-  strategies.push({goalId,title:goal.title,requiredSessions:count,sessions:content.length,minutes:content.reduce((s,t)=>s+adaptive.getEffectiveEstimatedMinutes(t),0),before:existing.length,provider,reason:'Balances cadence, minimum commitment, urgency and available capacity.'});
+  strategies.push({goalId,title:goal.title,category:goal.category,priority:goal.priority,horizon:goal.horizon,complexity:allocation.complexity,urgency:allocation.urgency.label,weight:Number(allocation.weight.toFixed(2)),requiredSessions:count,sessions:content.length,minutes:target,before:existing.length,provider,reason:allocation.reason,workTypes:allocation.workTypes});
  }
  if(jobs.length>500) fail('This portfolio has too much unfinished work for one preview. Pause goals or narrow the review.',400);
  const result=scheduleMasterTasks({jobs,protectedTasks,profile,start,end,todayMinutes:options.todayMinutes});
- for(const strategy of strategies) strategy.after=result.tasks.filter(t=>String(t.goalId)===strategy.goalId).length;
+ for (const strategy of strategies) { const scheduled=result.tasks.filter(t=>String(t.goalId)===strategy.goalId);strategy.after=scheduled.length;strategy.sessions=scheduled.length;strategy.minutes=scheduled.reduce((sum,task)=>sum+adaptive.getEffectiveEstimatedMinutes(task),0); }
+ const validation=validatePlanning({...allocationPlan,duplicates,result,profile});
+ if(!validation.passed) {result.feasible=false;result.reality='Needs Review';}
+ for(const duplicate of duplicates) warnings.push(`${duplicate.titles.join(' and ')}: ${duplicate.message}`);
  // A requested commitment with no legal dates is not silently considered feasible.
  if(warnings.some(w=>w.includes('no legal study days'))) {result.feasible=false;result.reality='Not Feasible';}
- const data={...result,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,selectedIds:[...selectedIds],
+ const data={...result,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,duplicates,validation,allocation:{totalCapacityMinutes:allocationPlan.totalCapacity,totalPlannableMinutes:allocationPlan.totalPlannableMinutes,protectedMinutes:allocationPlan.protectedMinutes},selectedIds:[...selectedIds],
   movedCount:result.tasks.filter(t=>t._id && dates.formatDateString(state.tasks.find(old=>String(old._id)===t._id).scheduledDate)!==dates.formatDateString(t.scheduledDate)).length,
   tradeOffs:['Reduce flexible weekly commitments','Lower goal frequency','Extend a deadline','Pause a goal','Increase availability'],deadlineChanges:0,targetPlanId:targetPlan ? String(targetPlan._id):null};
  const preview=await Preview.create({userId,fingerprint:fingerprint(state),data});

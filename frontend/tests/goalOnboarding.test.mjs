@@ -40,3 +40,11 @@ test('Goal edit PATCH sends only editable fields', async () => {
   assert.ok(!payload.includes('...form'));
   assert.ok(!payload.includes('milestones'));
 });
+test('review explains personalized allocations and surfaces planner validation', () => {
+  assert.ok(source.includes('Why this allocation:'));
+  assert.ok(source.includes('/week'));
+  assert.ok(source.includes('Possible duplicate goals'));
+  assert.ok(source.includes('Planning validation'));
+  assert.ok(source.includes('s.priority'));
+  assert.ok(source.includes('s.horizon'));
+});

@@ -232,6 +232,7 @@ test('fresh account can persist onboarding, create goals, preview and apply one 
   });
   assert.equal(invalidProfile.status, 400);
 
+  const createdGoals = [];
   for (const [title,horizon,priority] of [['Short goal','short','high'],['Medium goal','medium','medium'],['Long goal','long','low']]) {
     const created = await request(app).post('/api/goals').set('Authorization', auth).send({
       title, category: 'Skill Development', horizon, priority, importance: 'important',
@@ -239,10 +240,17 @@ test('fresh account can persist onboarding, create goals, preview and apply one 
       cadence: { type: 'times_per_week', timesPerWeek: 1, daysOfWeek: [] }
     });
     assert.equal(created.status, 201);
+    createdGoals.push(created.body);
   }
+  const patched = await request(app).patch('/api/goals/'+createdGoals[0]._id).set('Authorization', auth).send({
+    ...createdGoals[0], title: 'Updated short goal', createdAt: 'invalid-client-metadata', __v: 999
+  });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.title, 'Updated short goal');
+  assert.notEqual(patched.body.__v, 999);
   const preview = await request(app).post('/api/goals/schedule/preview').set('Authorization', auth).send({});
   assert.equal(preview.status, 200);
-  assert.equal(preview.body.feasible, true);
+  assert.equal(preview.body.feasible, true, JSON.stringify({validation:preview.body.validation,unscheduled:preview.body.unscheduled,conflicts:preview.body.conflicts,strategies:preview.body.strategies}));
   assert.equal(preview.body.strategies.length, 3);
   const applied = await request(app).post('/api/goals/schedule/'+preview.body.previewId+'/apply').set('Authorization', auth).send({});
   assert.equal(applied.status, 200);
