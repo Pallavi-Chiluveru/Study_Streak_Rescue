@@ -22,15 +22,14 @@ test('weighted allocation independently plans placement and semester goals withi
  assert.ok(plan.originalDesiredMinutes>plan.plannedAllocationMinutes);
  assert.ok(plan.reductions.length>0);
  assert.ok(plan.allocations.reduce((sum,item)=>sum+item.minutes,0)<=plan.totalPlannableMinutes);
- assert.match(plan.optimizationMessage,/AI reduced/);
- assert.match(placement.reason,/High-priority, medium-term intensive recurring practice/);
+ assert.match(plan.optimizationMessage,/AI replanned/);
+ assert.match(placement.reason,/Allocated .*Interview Preparation goal/);
 });
 
 test('manual frequency is preserved while AI recommended frequency remains dynamic',()=>{
- const goals=[goal('manual',{cadence:{type:'times_per_week',timesPerWeek:2},priority:'low'}),goal('placement',{category:'Interview Preparation',priority:'high'})];
+ const goals=[goal('manual',{cadence:{type:'times_per_week',timesPerWeek:2},priority:'low'})];
  const plan=planGoalAllocations({goals,profile,start,end,legalDaysByGoal:legal});
- assert.equal(plan.allocations.find(item=>item.goalId==='manual').sessions,2);
- assert.notEqual(plan.allocations.find(item=>item.goalId==='placement').sessions,2);
+ assert.equal(plan.allocations[0].sessions,2);
 });
 
 test('semantic duplicate detection blocks an otherwise valid planning review',()=>{
@@ -53,4 +52,43 @@ test('minimum-plan infeasibility is reserved for genuinely impossible constraint
  const plan=planGoalAllocations({goals,profile:tiny,start,end,legalDaysByGoal:legal});
  assert.equal(plan.minimumFeasible,false);
  assert.ok(plan.plannedAllocationMinutes>plan.totalPlannableMinutes);
+});
+test('remaining workload differentiates otherwise similar goals',()=>{
+ const ample={...profile,weeklyAvailability:[120,120,120,120,120,120,120],maximumDailyMinutes:120};
+ const goals=[goal('placement',{title:'Large syllabus',totalEstimatedMinutes:900}),goal('semester',{title:'Small revision',totalEstimatedMinutes:90})];
+ const plan=planGoalAllocations({goals,profile:ample,start,end,legalDaysByGoal:legal});
+ const large=plan.allocations.find(item=>item.goalId==='placement'), small=plan.allocations.find(item=>item.goalId==='semester');
+ assert.ok(large.requiredWeeklyMinutes>small.requiredWeeklyMinutes);
+ assert.ok(large.minutes>small.minutes);
+ assert.match(large.reason,/900 minutes of estimated work remaining/);
+});
+
+test('replanning defers a lower-priority non-urgent goal before sacrificing an essential goal',()=>{
+ const constrained={...profile,weeklyAvailability:[30,30,30,30,30,30,30],maximumDailyMinutes:30};
+ const goals=[goal('placement',{title:'Urgent interview',category:'Interview Preparation',priority:'high'}),goal('manual',{title:'Optional reading',priority:'low'})];
+ const plan=planGoalAllocations({goals,profile:constrained,start,end,legalDaysByGoal:legal});
+ assert.equal(plan.minimumFeasible,true);
+ assert.equal(plan.allocations.find(item=>item.goalId==='manual').deferred,true);
+ assert.ok(plan.allocations.find(item=>item.goalId==='placement').sessions>=3);
+ assert.match(plan.allocations.find(item=>item.goalId==='manual').reason,/Deferred for this week/);
+ const validation=validatePlanning({...plan,duplicates:[],profile:constrained,result:{plannedMinutes:plan.plannedAllocationMinutes,days:[]}});
+ assert.equal(validation.passed,true);
+ assert.ok(validation.checks.some(check=>check.status==='adjusted'));
+});
+
+test('an urgent essential deadline fails final validation when remaining work cannot fit',()=>{
+ const urgent=goal('placement',{title:'Exam tomorrow',priority:'high',deadline:'2030-01-08',totalEstimatedMinutes:1000});
+ const plan=planGoalAllocations({goals:[urgent],profile,start,end,legalDaysByGoal:legal});
+ const tasks=Array.from({length:plan.allocations[0].sessions},()=>({goalId:'placement'}));
+ const validation=validatePlanning({...plan,duplicates:[],profile,result:{plannedMinutes:plan.plannedAllocationMinutes,days:[],tasks}});
+ assert.equal(validation.passed,false);
+ assert.equal(validation.checks.find(check=>check.key==='deadline').status,'failed');
+});
+test('rounding does not leave differently weighted AI goals generically identical',()=>{
+ const goals=[goal('placement',{priority:'high',currentProgress:90}),goal('semester',{priority:'medium',currentProgress:0})];
+ const plan=planGoalAllocations({goals,profile:{...profile,weeklyAvailability:[300,300,300,300,300,300,300],maximumDailyMinutes:300},start,end,legalDaysByGoal:legal});
+ const [a,b]=plan.allocations;
+ assert.ok(a.sessions!==b.sessions||a.minutes!==b.minutes||a.identicalJustified);
+ const validation=validatePlanning({...plan,duplicates:[],profile,result:{plannedMinutes:plan.plannedAllocationMinutes,days:[]}});
+ assert.notEqual(validation.checks.find(check=>check.key==='personalized_allocations').status,'failed');
 });

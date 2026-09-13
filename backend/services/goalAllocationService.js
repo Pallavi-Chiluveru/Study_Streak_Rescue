@@ -70,23 +70,34 @@ const minimumSessionCount = (goal, urgency, continuity, desired, legalCount) => 
   if (urgency.factor===3) minimum=Math.max(minimum,3);
   return Math.min(legalCount,desired,minimum);
 };
-const explain = item => {
-  const {goal,complexity,continuity,urgency,progress,sessions}=item;
-  return `${goal.priority[0].toUpperCase()+goal.priority.slice(1)}-priority, ${goal.horizon || 'medium'}-term ${complexity}${continuity?' recurring practice':''}; ${urgency.label}; ${progressLabel(progress)}. Planned as ${sessions} focused session${sessions===1?'':'s'}.`;
+const explainAllocations = allocations => {
+  const ordered=[...allocations].filter(item=>!item.deferred).sort((a,b)=>b.minutes-a.minutes);
+  for(const item of allocations){
+    if(item.deferred){item.reason=`Deferred for this week because it is ${item.goal.priority}-priority and ${item.urgency.label}; capacity is protected for more urgent or essential goals.`;continue;}
+    const workload=item.remainingMinutes===null?'estimated weekly commitment':`${item.remainingMinutes} minutes of estimated work remaining`;
+    const comparison=ordered.length>1&&ordered[0].goalId===item.goalId?` It receives the largest allocation among ${ordered.length} active goals.`:'';
+    const adjustment=item.adjusted?` Replanned from ${item.desiredSessions} sessions and ${item.desiredMinutes} minutes to fit capacity.`:'';
+    item.reason=`Allocated ${item.sessions} x ${item.sessionMinutes}-minute sessions (${item.minutes} minutes/week) because this is a ${item.goal.priority}-priority ${item.goal.category || 'study'} goal with ${workload}, ${item.urgency.label}, and ${progressLabel(item.progress)} progress.${comparison}${adjustment}`;
+  }
+  return allocations;
 };
 const reductionOrder = (a,b) => a.protection-b.protection || a.weight-b.weight || a.goalId.localeCompare(b.goalId);
-const planGoalAllocations = ({ goals, profile, start, end, legalDaysByGoal, protectedTasks=[] }) => {
+const planGoalAllocations = ({ goals, profile, start, end, legalDaysByGoal, protectedTasks=[], completedMinutesByGoal=new Map() }) => {
   const days=capacityDays(profile,start,end), totalCapacity=days.reduce((sum,day)=>sum+day.capacity,0);
   const protectedMinutes=protectedTasks.filter(task=>{const key=formatDateString(task.scheduledDate);return key>=formatDateString(start)&&key<=formatDateString(end);}).reduce((sum,task)=>sum+getEffectiveEstimatedMinutes(task),0);
   const totalPlannableMinutes=Math.max(0,totalCapacity-protectedMinutes), preferred=Math.max(15,Math.min(90,Number(profile.preferredSessionMinutes)||45));
   const allocations=goals.map(goal=>{
     const goalId=String(goal._id), legalCount=(legalDaysByGoal.get(goalId)||[]).length, complexity=inferComplexity(goal), urgency=urgencyFor(goal,start), progress=Number(goal.currentProgress)||0;
+    const difficulty=String(goal.aiAnalysis?.difficulty||goal.currentLevel||'moderate').toLowerCase(), difficultyWeight=/hard|advanced|difficult/.test(difficulty)?1.2:/easy|beginner/.test(difficulty)?0.9:1;
     const priorityWeight=PRIORITY[goal.priority]||2, horizonWeight=HORIZON[goal.horizon]||1, progressWeight=PROGRESS(progress), complexityWeight=COMPLEXITY[complexity];
-    const continuity=continuousCategories.test(`${goal.category||''} ${goal.title||''}`), weight=priorityWeight*urgency.factor*horizonWeight*progressWeight*complexityWeight;
+    const continuity=continuousCategories.test(`${goal.category||''} ${goal.title||''}`), weight=priorityWeight*urgency.factor*horizonWeight*progressWeight*complexityWeight*difficultyWeight;
     const sessions=desiredSessionCount(goal,complexity,urgency,progress,continuity,legalCount), minimumSessions=minimumSessionCount(goal,urgency,continuity,sessions,legalCount);
-    const userCommitment=Math.max(0,goal.minimumWeeklyMinutes||0,goal.weeklyMinutes||0), desiredMinutes=Math.min(sessions*90,Math.max(sessions*preferred,userCommitment));
+    const completedMinutes=completedMinutesByGoal.get(goalId)||0, remainingMinutes=goal.totalEstimatedMinutes==null?null:Math.max(0,goal.totalEstimatedMinutes-completedMinutes);
+    const weeks=urgency.days===null?1:Math.max(1,urgency.days/7), requiredWeeklyMinutes=remainingMinutes===null?0:Math.ceil(remainingMinutes/weeks/5)*5;
+    const userCommitment=Math.max(0,goal.minimumWeeklyMinutes||0,goal.weeklyMinutes||0), desiredMinutes=Math.min(sessions*90,Math.max(sessions*preferred,userCommitment,requiredWeeklyMinutes));
+    const essential=goal.priority==='high'||goal.importance==='essential'||urgency.factor===3;
     const sessionMinutes=sessions ? Math.max(15,Math.min(90,Math.ceil(desiredMinutes/sessions/5)*5)) : 0;
-    return {goal,goalId,title:goal.title,complexity,urgency,progress,continuity,priorityWeight,horizonWeight,progressWeight,complexityWeight,weight,
+    return {goal,goalId,title:goal.title,complexity,urgency,progress,continuity,difficulty,difficultyWeight,priorityWeight,horizonWeight,progressWeight,complexityWeight,weight,essential,remainingMinutes,requiredWeeklyMinutes,
       sessions,minimumSessions,sessionMinutes,minutes:sessions*sessionMinutes,desiredSessions:sessions,desiredMinutes:sessions*sessionMinutes,
       protection:urgency.factor*100+priorityWeight*30+(continuity?15:0),workTypes:workTypesByCategory[goal.category]||workTypesByCategory['Skill Development']};
   });
@@ -99,25 +110,42 @@ const planGoalAllocations = ({ goals, profile, start, end, legalDaysByGoal, prot
     reductions.push({goalId:candidate.goalId,title:candidate.title,type:'session',minutes:candidate.sessionMinutes});
   }
   while(total>totalPlannableMinutes){
+    const candidate=[...allocations].filter(item=>!item.essential&&!item.deferred&&item.sessions>0).sort(reductionOrder)[0];
+    if(!candidate) break;
+    const removed=candidate.minutes;candidate.sessions=0;candidate.minutes=0;candidate.deferred=true;total-=removed;
+    reductions.push({goalId:candidate.goalId,title:candidate.title,type:'deferred',minutes:removed});
+  }
+  while(total>totalPlannableMinutes){
     const candidate=[...allocations].filter(item=>item.sessions>0&&item.sessionMinutes>15).sort(reductionOrder)[0];
     if(!candidate) break;
     const decrement=Math.min(5,candidate.sessionMinutes-15);candidate.sessionMinutes-=decrement;candidate.minutes=candidate.sessions*candidate.sessionMinutes;total-=decrement*candidate.sessions;
     reductions.push({goalId:candidate.goalId,title:candidate.title,type:'duration',minutes:decrement*candidate.sessions});
   }
-  for(const item of allocations){item.adjusted=item.sessions!==item.desiredSessions||item.minutes!==item.desiredMinutes;item.reason=explain(item);}
+  const scheduled=allocations.filter(item=>!item.deferred), identicalGroups=new Map();
+  for(const item of scheduled){const key=`${item.sessions}:${item.minutes}`;if(!identicalGroups.has(key))identicalGroups.set(key,[]);identicalGroups.get(key).push(item);}
+  for(const group of identicalGroups.values()){
+    if(group.length<2||group.every(item=>Math.abs(item.weight-group[0].weight)<=0.01))continue;
+    group.sort((a,b)=>b.weight-a.weight);const offsets=group.map((item,index)=>(group.length-1-index*2)*5);
+    if(group.every((item,index)=>item.sessionMinutes+offsets[index]>=15&&item.sessionMinutes+offsets[index]<=90)){
+      for(let index=0;index<group.length;index++){const item=group[index];item.sessionMinutes+=offsets[index];item.minutes=item.sessions*item.sessionMinutes;reductions.push({goalId:item.goalId,title:item.title,type:'redistributed',minutes:Math.abs(offsets[index]*item.sessions)});}
+    } else for(const item of group)item.identicalJustified=true;
+  }
+  for(const item of allocations)item.adjusted=item.sessions!==item.desiredSessions||item.minutes!==item.desiredMinutes;
+  explainAllocations(allocations);
   const minimumFeasible=total<=totalPlannableMinutes;
-  const reducedSessions=reductions.filter(change=>change.type==='session').length, reducedMinutes=originalDesiredMinutes-total;
+  const reducedSessions=reductions.filter(change=>change.type==='session').length, deferredGoals=reductions.filter(change=>change.type==='deferred').length, reducedMinutes=originalDesiredMinutes-total;
   return {allocations,totalCapacity,totalPlannableMinutes,protectedMinutes,originalDesiredMinutes,plannedAllocationMinutes:total,minimumFeasible,reductions,
-    optimizationMessage:reductions.length?`AI reduced ${reducedSessions} non-essential session${reducedSessions===1?'':'s'} and ${reducedMinutes} minutes from the initial recommendation so the plan fits.`:'The initial recommendation already fits your availability.'};
+    optimizationMessage:reductions.length?`AI replanned the initial recommendation by reducing ${reducedSessions} session${reducedSessions===1?'':'s'}, deferring ${deferredGoals} lower-urgency goal${deferredGoals===1?'':'s'}, and freeing ${reducedMinutes} minutes so the final plan fits.`:'The initial recommendation already fits your availability.'};
 };
 const validatePlanning = ({allocations,totalCapacity,totalPlannableMinutes,minimumFeasible,duplicates,result,profile}) => {
   const planned=allocations.reduce((sum,item)=>sum+item.minutes,0);
-  const identicalWithoutReason=allocations.some((a,i)=>allocations.slice(i+1).some(b=>a.sessions===b.sessions&&a.minutes===b.minutes&&Math.abs(a.weight-b.weight)>0.01&&(a.goal.cadence?.type==='ai_recommended'||b.goal.cadence?.type==='ai_recommended')));
+  const identicalWithoutReason=allocations.filter(item=>!item.deferred).some((a,i,list)=>list.slice(i+1).some(b=>a.sessions===b.sessions&&a.minutes===b.minutes&&Math.abs(a.weight-b.weight)>0.01&&!a.identicalJustified&&!b.identicalJustified&&(a.goal.cadence?.type==='ai_recommended'||b.goal.cadence?.type==='ai_recommended')));
   const highMeaningful=allocations.filter(item=>item.goal.priority==='high').every(item=>item.sessions>=item.minimumSessions&&item.minutes>0);
-  const weightAligned=allocations.every(a=>allocations.every(b=>a.weight<=b.weight||a.minutes>=b.minutes||a.minimumSessions>b.minimumSessions));
+  const weightAligned=allocations.filter(item=>!item.deferred).every(a=>allocations.filter(item=>!item.deferred).every(b=>a.weight<=b.weight||a.minutes>=b.minutes||a.minimumSessions>b.minimumSessions));
   const urgencyAligned=allocations.every(a=>allocations.every(b=>a.urgency.factor<=b.urgency.factor||a.priorityWeight!==b.priorityWeight||a.complexityWeight!==b.complexityWeight||a.minutes>=b.minutes));
+  const deadlineAchievable=allocations.filter(item=>item.essential&&!item.deferred&&item.urgency.days!==null&&item.urgency.days<=7&&item.remainingMinutes!==null).every(item=>item.minutes>=item.remainingMinutes);
   const dailySafe=(result?.days||[]).every(day=>day.used<=day.capacity&&day.used<=profile.maximumDailyMinutes);
-  const allMinimums=(result?.tasks ? allocations.every(item=>result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions) : true);
+  const allMinimums=(result?.tasks ? allocations.every(item=>item.deferred||result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions) : true);
   const checks=[
     {key:'unique_goals',passed:!duplicates.length,message:duplicates.length?'Merge or remove possible duplicate goals before scheduling.':'No semantic duplicate goals detected.'},
     {key:'minimum_plan',passed:minimumFeasible&&allMinimums,message:minimumFeasible&&allMinimums?'Every active goal has a meaningful minimum allocation.':'The current constraints cannot accommodate a meaningful minimum plan for every active goal.'},
@@ -125,10 +153,13 @@ const validatePlanning = ({allocations,totalCapacity,totalPlannableMinutes,minim
     {key:'weight_alignment',passed:weightAligned,message:weightAligned?'Weekly time follows goal protection and relative weights.':'A more important goal received less time without a minimum-plan reason.'},
     {key:'urgency_alignment',passed:urgencyAligned,message:urgencyAligned?'Deadline urgency is reflected in allocation.':'A more urgent comparable goal received less time.'},
     {key:'capacity',passed:planned<=totalPlannableMinutes&&(!result||result.plannedMinutes<=totalCapacity),message:'Planned time stays within usable weekly capacity.'},
+    {key:'deadline',passed:deadlineAchievable,message:deadlineAchievable?'Urgent essential deadlines have enough planned time for the estimated remaining work.':'An urgent essential deadline cannot be met with the available capacity.'},
     {key:'daily_limit',passed:dailySafe,message:'Daily planned time stays within the configured maximum.'},
     {key:'buffer',passed:planned<=totalPlannableMinutes,message:'Configured buffer remains reserved.'},
     {key:'high_priority',passed:highMeaningful,message:highMeaningful?'High-priority goals retain meaningful time.':'A high-priority goal fell below its minimum viable allocation.'}
   ];
-  return {passed:checks.every(check=>check.passed),checks};
+  const wasAdjusted=allocations.some(item=>item.adjusted||item.deferred);
+  for(const check of checks) check.status=check.passed?(wasAdjusted&&['capacity','buffer','personalized_allocations'].includes(check.key)?'adjusted':'passed'):'failed';
+  return {passed:checks.every(check=>check.passed),adjusted:wasAdjusted,checks};
 };
-module.exports={inferComplexity,urgencyFor,findSemanticDuplicates,planGoalAllocations,validatePlanning,workTypesByCategory};
+module.exports={inferComplexity,urgencyFor,findSemanticDuplicates,planGoalAllocations,validatePlanning,explainAllocations,workTypesByCategory};

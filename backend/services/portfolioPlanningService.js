@@ -10,7 +10,7 @@ const adaptive = require('./adaptiveEstimationService');
 const { scheduleMasterTasks } = require('./schedulingService');
 const groq = require('./groqService');
 const { goalHealth } = require('./goalPriorityService');
-const { findSemanticDuplicates, planGoalAllocations, validatePlanning } = require('./goalAllocationService');
+const { findSemanticDuplicates, planGoalAllocations, validatePlanning, explainAllocations } = require('./goalAllocationService');
 const fail = (message,status=409) => { throw Object.assign(new Error(message),{status}); };
 const snapshot = async userId => {
  const [user,goals,tasks,plans]=await Promise.all([User.findById(userId),Goal.find({userId}).sort({_id:1}),Task.find({userId}).sort({_id:1}),Plan.find({userId}).sort({_id:1})]);
@@ -53,7 +53,8 @@ const buildPreview = async (userId, options={}) => {
  if (targetPlan && !targetPlan.goalId) active=[{_id:'quick-plan',title:targetPlan.title,category:targetPlan.category || 'Skill Development',startDate:targetPlan.startDate,deadline:targetPlan.deadline,priority:'high',importance:'important',currentProgress:0,weeklyMinutes:0,cadence:{type:'flexible'},toObject(){return this;}}];
  const legalDaysByGoal=new Map(active.map(goal=>[String(goal._id),cadenceDays(goal,legalDays(goal,start,end))]));
  const duplicates=targetPlan ? [] : findSemanticDuplicates(active);
- const allocationPlan=planGoalAllocations({goals:active,profile,start,end,legalDaysByGoal,protectedTasks});
+ const completedMinutesByGoal=new Map(active.map(goal=>[String(goal._id),state.tasks.filter(task=>String(task.goalId)===String(goal._id)&&task.status==='completed').reduce((sum,task)=>sum+adaptive.baseEstimate(task),0)]));
+ const allocationPlan=planGoalAllocations({goals:active,profile,start,end,legalDaysByGoal,protectedTasks,completedMinutesByGoal});
  const allocationByGoal=new Map(allocationPlan.allocations.map(item=>[item.goalId,item]));
  for (const goal of active) {
   const goalId=String(goal._id), allocation=allocationByGoal.get(goalId), days=legalDaysByGoal.get(goalId), count=allocation.sessions;
@@ -61,7 +62,7 @@ const buildPreview = async (userId, options={}) => {
   const completed=state.tasks.filter(t=>String(t.goalId)===goalId && t.status==='completed');
   const remaining=goal.totalEstimatedMinutes ? Math.max(0,goal.totalEstimatedMinutes-completed.reduce((s,t)=>s+adaptive.baseEstimate(t),0)) : null;
   const target=allocation.minutes;
-  let content=existing.map(t=>adaptive.personalizeTask(state.user,t)), provider='existing';
+  let content=allocation.deferred ? [] : existing.map(t=>adaptive.personalizeTask(state.user,t)), provider=allocation.deferred ? 'deferred' : 'existing';
   if (!targetPlan && days.length) {
    const enough=()=>content.length>=count && content.reduce((s,t)=>s+adaptive.baseEstimate(t),0)>=target;
    if(!enough()) {
@@ -88,15 +89,17 @@ const buildPreview = async (userId, options={}) => {
  const result=scheduleMasterTasks({jobs,protectedTasks,profile,start,end,todayMinutes:options.todayMinutes});
  for (const strategy of strategies) { const scheduled=result.tasks.filter(t=>String(t.goalId)===strategy.goalId);strategy.after=scheduled.length;strategy.sessions=scheduled.length;strategy.minutes=scheduled.reduce((sum,task)=>sum+adaptive.getEffectiveEstimatedMinutes(task),0); }
  if(result.unscheduled.length && !result.conflicts.length) {
-  const minimumsStillFit=allocationPlan.allocations.every(item=>result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions);
+  const minimumsStillFit=allocationPlan.allocations.every(item=>item.deferred||result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions);
   if(minimumsStillFit) {
    const removed=result.unscheduled.length, removedMinutes=result.unscheduled.reduce((sum,item)=>sum+item.minutes,0);
    allocationPlan.optimizationMessage+=` Daily-distribution constraints removed ${removed} additional non-essential session${removed===1?'':'s'} (${removedMinutes} minutes).`;
    result.unscheduled=[];result.requiredMinutes=result.plannedMinutes;result.shortageMinutes=0;result.feasible=true;
    result.reality=result.plannedMinutes/Math.max(1,result.availableMinutes)>0.85?'Tight':result.plannedMinutes/Math.max(1,result.availableMinutes)>0.6?'Realistic':'Comfortable';
-   for(const item of allocationPlan.allocations){const strategy=strategies.find(value=>value.goalId===item.goalId);item.sessions=strategy?.sessions||0;item.minutes=strategy?.minutes||0;item.adjusted=true;}
+   for(const item of allocationPlan.allocations){const strategy=strategies.find(value=>value.goalId===item.goalId);item.sessions=strategy?.sessions||0;item.minutes=strategy?.minutes||0;item.sessionMinutes=item.sessions?Math.round(item.minutes/item.sessions):0;item.adjusted=true;}
   }
  }
+ explainAllocations(allocationPlan.allocations);
+ for(const strategy of strategies){const allocation=allocationByGoal.get(strategy.goalId);strategy.reason=allocation.reason;strategy.deferred=Boolean(allocation.deferred);strategy.sessionMinutes=allocation.sessionMinutes;}
  const validation=validatePlanning({...allocationPlan,duplicates,result,profile});
  if(!validation.passed) {result.feasible=false;result.reality='Needs Review';}
  for(const duplicate of duplicates) warnings.push(`${duplicate.titles.join(' and ')}: ${duplicate.message}`);

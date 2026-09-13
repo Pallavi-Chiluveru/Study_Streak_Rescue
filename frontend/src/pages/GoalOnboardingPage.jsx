@@ -881,9 +881,9 @@ export default function GoalOnboardingPage() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <strong className="block">{s.title}</strong>
-                    <span className="text-sm capitalize text-slate-500">{s.priority} priority Ã‚· {s.horizon} term Ã‚· {s.complexity}</span>
+                    <span className="text-sm capitalize text-slate-500">{s.priority} priority · {s.horizon} term · {s.complexity}</span>
                   </div>
-                  <strong>{pluralize(s.sessions, "session")} Ã‚· {formatDuration(s.minutes)}/week</strong>
+                  <strong>{s.deferred ? "Deferred this week" : <>{pluralize(s.sessions, "session")} · {formatDuration(s.minutes)}/week</>}</strong>
                 </div>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Why this allocation:</strong> {s.reason}</p>
               </div>
@@ -892,7 +892,7 @@ export default function GoalOnboardingPage() {
               <div className="mt-5 rounded-xl border p-4">
                 <strong>Planning validation</strong>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {preview.validation.checks.map((check) => <li key={check.key}>{check.passed ? "?" : "?"} {check.message}</li>)}
+                  {preview.validation.checks.map((check) => <li key={check.key}><strong>{check.status === "passed" ? "✓ Passed" : check.status === "adjusted" ? "⚠ Adjusted during replanning" : "✕ Could not satisfy"}</strong>: {check.message}</li>)}
                 </ul>
               </div>
             )}

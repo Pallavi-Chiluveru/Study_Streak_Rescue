@@ -54,3 +54,10 @@ test('normal review presents automatic optimization instead of a red feasibility
   assert.ok(source.includes('meaningful minimum plan for every active goal'));
   assert.ok(!source.includes('Return to adjust goals or availability'));
 });
+test('final validation uses explicit states and deferred-goal labels', () => {
+  assert.ok(source.includes('✓ Passed'));
+  assert.ok(source.includes('⚠ Adjusted during replanning'));
+  assert.ok(source.includes('✕ Could not satisfy'));
+  assert.ok(source.includes('Deferred this week'));
+  assert.ok(!source.includes('check.passed ? "?" : "?"'));
+});
