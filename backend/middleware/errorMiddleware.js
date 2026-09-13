@@ -1,5 +1,5 @@
 const errorHandler = (err, req, res, next) => {
-  const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
+  const statusCode = err.statusCode || err.status || (res.statusCode >= 400 ? res.statusCode : 500);
   // Provider errors, database errors and request config can contain credentials.
   console.error('API request failed.');
   res.status(statusCode).json({

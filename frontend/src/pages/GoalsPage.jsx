@@ -1,4 +1,4 @@
-﻿import React,{useEffect,useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {Target,Plus,Pause,Play,CheckCircle2,Archive,RefreshCw,CalendarDays,Clock,Sparkles,X} from 'lucide-react';
 import API from '../services/api';
 import {useToast} from '../context/ToastContext';
@@ -10,7 +10,7 @@ export default function GoalsPage(){
  const{addToast}=useToast();const[data,setData]=useState({goals:[]});const[filter,setFilter]=useState('all');const[form,setForm]=useState(null);const[busy,setBusy]=useState(false);const[preview,setPreview]=useState(null);
  const load=async()=>{try{setData((await API.get('/goals')).data);}catch(e){addToast(e.response?.data?.message||'Could not load goals','error');}};
  useEffect(()=>{load();},[]);
- const save=async e=>{e.preventDefault();setBusy(true);try{const body={...form,startDate:form.startDate||null,deadline:form.deadline||null,weeklyMinutes:Number(form.weeklyMinutes),minimumWeeklyMinutes:Number(form.minimumWeeklyMinutes),cadence:{...form.cadence,timesPerWeek:Number(form.cadence.timesPerWeek)}};form._id?await API.patch('/goals/'+form._id,body):await API.post('/goals',body);setForm(null);await load();addToast('Goal saved','success');}catch(e){addToast(e.response?.data?.message||'Could not save goal','error');}finally{setBusy(false);}};
+ const save=async e=>{e.preventDefault();setBusy(true);try{const body={title:form.title,category:form.category,description:form.description||'',priority:form.priority,importance:form.importance,horizon:form.horizon,startDate:form.startDate||null,deadline:form.deadline||null,weeklyMinutes:Number(form.weeklyMinutes),minimumWeeklyMinutes:Number(form.minimumWeeklyMinutes),cadence:{type:form.cadence.type,timesPerWeek:Number(form.cadence.timesPerWeek),daysOfWeek:form.cadence.daysOfWeek||[]}};form._id?await API.patch('/goals/'+form._id,body):await API.post('/goals',body);setForm(null);await load();addToast('Goal saved','success');}catch(e){addToast(e.response?.data?.message||'Could not save goal','error');}finally{setBusy(false);}};
  const status=async(g,s)=>{try{const r=await API.patch('/goals/'+g._id+'/status',{status:s});await load();setPreview(null);addToast(r.data.rebalanceRecommended?'Goal updated. Preview a rebalance to protect your schedule.':'Goal updated','success');}catch(e){addToast(e.response?.data?.message||'Could not update goal','error');}};
  const makePreview=async()=>{setBusy(true);try{setPreview((await API.post('/goals/schedule/preview',{})).data);}catch(e){addToast(e.response?.data?.message||'Could not build schedule','error');}finally{setBusy(false);}};
  const apply=async()=>{setBusy(true);try{await API.post('/goals/schedule/'+preview.previewId+'/apply');setPreview(null);await load();addToast('Your shared weekly schedule is ready','success');}catch(e){addToast(e.response?.data?.message||'Could not apply schedule','error');}finally{setBusy(false);}};

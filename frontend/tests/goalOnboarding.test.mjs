@@ -32,3 +32,11 @@ test('removed persisted goals are reconciled before recalculation', () => {
   assert.ok(source.includes('removedGoalIds'));
   assert.ok(source.includes('removedGoalIds: []'));
 });
+
+test('Goal edit PATCH sends only editable fields', async () => {
+  const goalsPage = await readFile(new URL('../src/pages/GoalsPage.jsx', import.meta.url), 'utf8');
+  const payload = goalsPage.slice(goalsPage.indexOf('const body='), goalsPage.indexOf(';form._id?'));
+  assert.ok(payload.includes('title:form.title'));
+  assert.ok(!payload.includes('...form'));
+  assert.ok(!payload.includes('milestones'));
+});

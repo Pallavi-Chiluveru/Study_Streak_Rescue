@@ -98,7 +98,7 @@ MONGODB_URI=mongodb://localhost:27017/studystreakrescue
 JWT_SECRET=super_secret_lightning_key_2026
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
-CLIENT_URLS=https://your-frontend-domain.example,http://localhost:5173
+CLIENT_URL=https://your-frontend-domain.example
 ```
 *Note: If `GROQ_API_KEY` is not provided or the provider fails, the backend uses an explicit deterministic fallback breakdown so the app remains usable.*
 
@@ -121,7 +121,7 @@ For local development, use `http://localhost:5000/api` instead.
 
 ### Production deployment
 
-For Render, set the backend service root directory to `backend`, use `npm install` as the build command, and `npm start` as the start command. Add `GROQ_API_KEY`, `GROQ_MODEL`, `MONGODB_URI`, `JWT_SECRET`, and `CLIENT_URLS` in the Render environment. `CLIENT_URLS` must include the exact deployed frontend origin, for example `https://your-app.vercel.app`.
+For Render, set the backend service root directory to `backend`, use `npm install` as the build command, and `npm start` as the start command. Add `GROQ_API_KEY`, `GROQ_MODEL`, `MONGODB_URI`, `JWT_SECRET`, and `CLIENT_URL` in the Render environment. `CLIENT_URL` must be the exact deployed frontend origin, for example `https://your-app.vercel.app`. For multiple allowed origins, use the backward-compatible `CLIENT_URLS` variable with comma-separated origins.
 
 For Vercel, set the frontend root directory to `frontend` and add `VITE_API_URL=https://study-streak-rescue.onrender.com/api`. Rebuild and redeploy the frontend after changing this variable because Vite embeds it at build time.
 

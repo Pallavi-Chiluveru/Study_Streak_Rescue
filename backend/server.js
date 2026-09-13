@@ -16,19 +16,21 @@ connectDB();
 const app = express();
 
 // Middleware
-const allowedOrigins = (process.env.CLIENT_URL || '')
+const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
   .split(',')
-  .map(origin => origin.trim())
+  .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 app.use(cors({
   origin: allowedOrigins.length === 0
     ? true
     : (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
         return callback(null, true);
       }
-      return callback(new Error('Origin is not allowed by CORS'));
+      const error = new Error('Origin is not allowed by CORS');
+      error.statusCode = 403;
+      return callback(error);
     },
   credentials: true
 }));

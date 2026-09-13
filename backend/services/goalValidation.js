@@ -8,8 +8,14 @@ const number = (v, min, max, name) => { if (typeof v !== 'number' || !Number.isF
 const choice = (v, values, name) => { if (!values.includes(v)) fail(`Invalid ${name}.`); return v; };
 const date = (v, name) => {
  if (!v) return null;
- if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v) || formatDateString(getStartOfDay(v)) !== v) fail(`Invalid ${name}.`);
- return getStartOfDay(v);
+ if (typeof v !== 'string') fail(`Invalid ${name}.`);
+ const value = /^\d{4}-\d{2}-\d{2}$/.test(v)
+  ? v
+  : /^\d{4}-\d{2}-\d{2}T/.test(v) && Number.isFinite(Date.parse(v))
+   ? v.slice(0, 10)
+   : null;
+ if (!value || formatDateString(getStartOfDay(value)) !== value) fail(`Invalid ${name}.`);
+ return getStartOfDay(value);
 };
 const weekdays = v => { if (!Array.isArray(v) || v.length > 7 || v.some(n => !Number.isInteger(n) || n < 0 || n > 6)) fail('Choose valid weekdays.'); return [...new Set(v)]; };
 const validateGoal = (body, previous = {}) => {
