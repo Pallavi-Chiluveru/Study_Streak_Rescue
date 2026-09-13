@@ -87,12 +87,23 @@ const buildPreview = async (userId, options={}) => {
  if(jobs.length>500) fail('This portfolio has too much unfinished work for one preview. Pause goals or narrow the review.',400);
  const result=scheduleMasterTasks({jobs,protectedTasks,profile,start,end,todayMinutes:options.todayMinutes});
  for (const strategy of strategies) { const scheduled=result.tasks.filter(t=>String(t.goalId)===strategy.goalId);strategy.after=scheduled.length;strategy.sessions=scheduled.length;strategy.minutes=scheduled.reduce((sum,task)=>sum+adaptive.getEffectiveEstimatedMinutes(task),0); }
+ if(result.unscheduled.length && !result.conflicts.length) {
+  const minimumsStillFit=allocationPlan.allocations.every(item=>result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions);
+  if(minimumsStillFit) {
+   const removed=result.unscheduled.length, removedMinutes=result.unscheduled.reduce((sum,item)=>sum+item.minutes,0);
+   allocationPlan.optimizationMessage+=` Daily-distribution constraints removed ${removed} additional non-essential session${removed===1?'':'s'} (${removedMinutes} minutes).`;
+   result.unscheduled=[];result.requiredMinutes=result.plannedMinutes;result.shortageMinutes=0;result.feasible=true;
+   result.reality=result.plannedMinutes/Math.max(1,result.availableMinutes)>0.85?'Tight':result.plannedMinutes/Math.max(1,result.availableMinutes)>0.6?'Realistic':'Comfortable';
+   for(const item of allocationPlan.allocations){const strategy=strategies.find(value=>value.goalId===item.goalId);item.sessions=strategy?.sessions||0;item.minutes=strategy?.minutes||0;item.adjusted=true;}
+  }
+ }
  const validation=validatePlanning({...allocationPlan,duplicates,result,profile});
  if(!validation.passed) {result.feasible=false;result.reality='Needs Review';}
  for(const duplicate of duplicates) warnings.push(`${duplicate.titles.join(' and ')}: ${duplicate.message}`);
  // A requested commitment with no legal dates is not silently considered feasible.
  if(warnings.some(w=>w.includes('no legal study days'))) {result.feasible=false;result.reality='Not Feasible';}
- const data={...result,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,duplicates,validation,allocation:{totalCapacityMinutes:allocationPlan.totalCapacity,totalPlannableMinutes:allocationPlan.totalPlannableMinutes,protectedMinutes:allocationPlan.protectedMinutes},selectedIds:[...selectedIds],
+ const recommendations=validation.checks.find(check=>check.key==='minimum_plan'&&!check.passed)?['Focus on the urgent/high-priority goals and postpone one optional goal','Increase weekly availability enough to fit each minimum session','Reduce one goal priority or choose a later deadline']:[];
+ const data={...result,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,duplicates,validation,recommendations,optimization:{optimized:allocationPlan.reductions.length>0,message:allocationPlan.optimizationMessage,desiredMinutes:allocationPlan.originalDesiredMinutes,plannedMinutes:result.plannedMinutes},allocation:{totalCapacityMinutes:allocationPlan.totalCapacity,totalPlannableMinutes:allocationPlan.totalPlannableMinutes,protectedMinutes:allocationPlan.protectedMinutes},selectedIds:[...selectedIds],
   movedCount:result.tasks.filter(t=>t._id && dates.formatDateString(state.tasks.find(old=>String(old._id)===t._id).scheduledDate)!==dates.formatDateString(t.scheduledDate)).length,
   tradeOffs:['Reduce flexible weekly commitments','Lower goal frequency','Extend a deadline','Pause a goal','Increase availability'],deadlineChanges:0,targetPlanId:targetPlan ? String(targetPlan._id):null};
  const preview=await Preview.create({userId,fingerprint:fingerprint(state),data});

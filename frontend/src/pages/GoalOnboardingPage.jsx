@@ -864,9 +864,16 @@ export default function GoalOnboardingPage() {
                 <p>{duplicate.message} Go back and keep or merge one goal before building the schedule.</p>
               </div>
             ))}
-            {preview && !preview.feasible && (
+            {preview?.feasible && (
+              <div className="mt-5 rounded-xl bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+                <strong>AI optimized your plan to fit your availability.</strong>
+                <p className="mt-1">{preview.optimization?.message}</p>
+              </div>
+            )}
+            {preview && !preview.feasible && preview.validation?.checks?.some((check) => check.key === "minimum_plan" && !check.passed) && (
               <div className="mt-5 rounded-xl bg-red-50 p-4 text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                This portfolio needs review. Nothing will be overbooked. Return to adjust goals or availability.
+                <strong>Your current constraints cannot accommodate a meaningful minimum plan for every active goal.</strong>
+                <ul className="mt-2 list-disc pl-5">{preview.recommendations?.map((recommendation) => <li key={recommendation}>{recommendation}</li>)}</ul>
               </div>
             )}
             {preview?.strategies?.map((s) => (
@@ -874,9 +881,9 @@ export default function GoalOnboardingPage() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <strong className="block">{s.title}</strong>
-                    <span className="text-sm capitalize text-slate-500">{s.priority} priority · {s.horizon} term · {s.complexity}</span>
+                    <span className="text-sm capitalize text-slate-500">{s.priority} priority Ã‚· {s.horizon} term Ã‚· {s.complexity}</span>
                   </div>
-                  <strong>{pluralize(s.sessions, "session")} · {formatDuration(s.minutes)}/week</strong>
+                  <strong>{pluralize(s.sessions, "session")} Ã‚· {formatDuration(s.minutes)}/week</strong>
                 </div>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Why this allocation:</strong> {s.reason}</p>
               </div>

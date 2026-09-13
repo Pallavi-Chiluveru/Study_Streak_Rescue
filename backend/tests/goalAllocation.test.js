@@ -19,7 +19,10 @@ test('weighted allocation independently plans placement and semester goals withi
  assert.ok(placement.minutes>semester.minutes);
  assert.ok(placement.sessions>semester.sessions);
  assert.notEqual(`${placement.sessions}:${placement.minutes}`,`${semester.sessions}:${semester.minutes}`);
+ assert.ok(plan.originalDesiredMinutes>plan.plannedAllocationMinutes);
+ assert.ok(plan.reductions.length>0);
  assert.ok(plan.allocations.reduce((sum,item)=>sum+item.minutes,0)<=plan.totalPlannableMinutes);
+ assert.match(plan.optimizationMessage,/AI reduced/);
  assert.match(placement.reason,/High-priority, medium-term intensive recurring practice/);
 });
 
@@ -40,4 +43,14 @@ test('semantic duplicate detection blocks an otherwise valid planning review',()
  const validation=validatePlanning({...allocation,duplicates,result,profile});
  assert.equal(validation.passed,false);
  assert.equal(validation.checks.find(check=>check.key==='unique_goals').passed,false);
+});
+test('minimum-plan infeasibility is reserved for genuinely impossible constraints',()=>{
+ const tiny={...profile,weeklyAvailability:[5,0,0,0,0,0,0],maximumDailyMinutes:5};
+ const goals=[
+  goal('placement',{category:'Interview Preparation',priority:'high',deadline:'2030-01-08'}),
+  goal('semester',{category:'Semester / Academics',priority:'high',deadline:'2030-01-08'})
+ ];
+ const plan=planGoalAllocations({goals,profile:tiny,start,end,legalDaysByGoal:legal});
+ assert.equal(plan.minimumFeasible,false);
+ assert.ok(plan.plannedAllocationMinutes>plan.totalPlannableMinutes);
 });

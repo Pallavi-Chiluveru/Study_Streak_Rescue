@@ -48,3 +48,9 @@ test('review explains personalized allocations and surfaces planner validation',
   assert.ok(source.includes('s.priority'));
   assert.ok(source.includes('s.horizon'));
 });
+test('normal review presents automatic optimization instead of a red feasibility dead end', () => {
+  assert.ok(source.includes('AI optimized your plan to fit your availability.'));
+  assert.ok(source.includes('preview.optimization?.message'));
+  assert.ok(source.includes('meaningful minimum plan for every active goal'));
+  assert.ok(!source.includes('Return to adjust goals or availability'));
+});
