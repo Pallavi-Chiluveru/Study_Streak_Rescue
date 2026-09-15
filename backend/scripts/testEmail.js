@@ -8,7 +8,7 @@ const email = require('../services/emailService');
   if (!await email.initializeEmailService()) { process.exitCode = 1; return; }
   try {
     await email.sendTestEmail();
-    console.log('Test email accepted by SMTP. Check the configured sender inbox.');
+    console.log('Test email accepted by Resend. Check the configured recipient inbox.');
   } catch {
     console.error('Email service unavailable'); process.exitCode = 1;
   }

@@ -7,29 +7,31 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const request = require('supertest');
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const nodemailer = require('nodemailer');
+const { installResendFetchMock } = require('./resendFetchMock');
 const User = require('../models/User');
 const Token = require('../models/PasswordResetToken');
 const service = require('../services/passwordResetService');
 let mongo, app, account, auth, mail, rejectEmail;
-const originalTransport = nodemailer.createTransport;
+let restoreFetch;
 const password = 'NewPassword123';
 const body = token => ({ token, newPassword: password, confirmPassword: password });
 const rawToken = () => new URL(mail.text.match(/https?:\/\/\S+/)[0]).searchParams.get('token');
 before(async () => {
   process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
-  Object.assign(process.env, { EMAIL_HOST: 'smtp.example.test', EMAIL_PORT: '587', EMAIL_SECURE: 'false', EMAIL_USER: 'test', EMAIL_PASS: 'test', EMAIL_FROM: 'Study Streak <test@example.test>', CLIENT_URL: 'https://study.example.test' });
+  Object.assign(process.env, {
+    RESEND_API_KEY: 're_synthetic_test_only',
+    EMAIL_FROM: 'Study Streak <test@example.test>',
+    CLIENT_URL: 'https://study.example.test'
+  });
+  restoreFetch = installResendFetchMock({
+    messages: {
+      push(message) { mail = message; }
+    },
+    shouldFail: () => rejectEmail
+  });
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
   await Promise.all([User.init(), Token.init()]);
-  nodemailer.createTransport = options => {
-    assert.equal(options.requireTLS, true);
-    return { sendMail: async message => {
-      if (rejectEmail) throw new Error('private SMTP failure');
-      mail = message;
-      return { accepted: [message.to] };
-    } };
-  };
 });
 beforeEach(async () => {
   await Promise.all([User.deleteMany({}), Token.deleteMany({})]);
@@ -41,7 +43,7 @@ beforeEach(async () => {
   account = registered.body; auth = `Bearer ${account.token}`;
 });
 after(async () => {
-  nodemailer.createTransport = originalTransport;
+  restoreFetch();
   await mongoose.disconnect();
   if (mongo) await mongo.stop();
 });
@@ -107,7 +109,7 @@ test('email failure cleans up and returns a safe error', async () => {
   rejectEmail = true;
   const response = await request(app).post('/api/auth/request-password-change').set('Authorization', auth);
   assert.equal(response.status, 503); assert.equal(response.body.code, 'EMAIL_FAILED');
-  assert.ok(!JSON.stringify(response.body).includes('private SMTP'));
+  assert.ok(!JSON.stringify(response.body).includes('synthetic provider'));
   assert.equal(await Token.countDocuments(), 0);
 });
 test('requests are limited to five per hour', async () => {
@@ -168,7 +170,7 @@ test('forgot password normalizes email, uses shared link, resets password and re
   assert.equal((await request(app).post('/api/auth/login').send({ email: account.email, password: 'OldPassword123' })).status, 401);
   assert.equal((await request(app).post('/api/auth/login').send({ email: account.email, password })).status, 200);
 });
-test('unknown account and SMTP failure have identical public responses without sending to unknown accounts', async () => {
+test('unknown account and Resend failure have identical public responses without sending to unknown accounts', async () => {
   const unknown = await forgotRequest('unknown@example.test');
   assert.equal(mail, null); assert.equal(await Token.countDocuments(), 0);
   const known = await forgotRequest(account.email);

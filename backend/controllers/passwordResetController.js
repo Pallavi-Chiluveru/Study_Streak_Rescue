@@ -5,7 +5,7 @@ exports.forgotPassword = async (req, res) => {
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
-  // Respond before lookup and SMTP: account existence cannot change response timing.
+  // Respond before lookup and email delivery: account existence cannot change response timing.
   // Delivery runs in this long-running Express process, not a serverless handler.
   res.json({ success: true, message: 'If an account exists for this email, a password reset link has been sent.' });
   try { await service.requestForgotPassword(email); }

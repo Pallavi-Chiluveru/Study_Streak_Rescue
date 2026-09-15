@@ -1,30 +1,24 @@
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
+const { installResendFetchMock } = require('./resendFetchMock');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongo;
 let user;
 let sent;
 let failSend = false;
-const originalCreate = nodemailer.createTransport;
+let restoreFetch;
 Object.assign(process.env, {
   CLIENT_URL: 'https://study.example.test',
-  EMAIL_HOST: 'smtp.example.test',
-  EMAIL_PORT: '587',
-  EMAIL_SECURE: 'false',
-  EMAIL_USER: 'sender@example.test',
-  EMAIL_PASS: 'synthetic-test-only',
+  RESEND_API_KEY: 're_synthetic_test_only',
   EMAIL_FROM: 'Study Streak <sender@example.test>'
 });
-nodemailer.createTransport = () => ({
-  sendMail: async message => {
-    sent.push(message);
-    if (failSend) throw new Error('private SMTP detail');
-    return { accepted: [message.to] };
+restoreFetch = installResendFetchMock({
+  messages: {
+    push(message) { sent.push(message); }
   },
-  verify: async () => true
+  shouldFail: () => failSend
 });
 
 const User = require('../models/User');
@@ -43,7 +37,7 @@ before(async () => {
 after(async () => {
   await mongoose.disconnect();
   await mongo.stop();
-  nodemailer.createTransport = originalCreate;
+  restoreFetch();
 });
 beforeEach(async () => {
   sent = [];
@@ -88,7 +82,7 @@ test('email disabled keeps the in-app critical alert and sends no study email', 
   assert.equal(sent.length, 0);
 });
 
-test('SMTP failure does not remove the in-app alert and is recorded safely', async () => {
+test('Resend failure does not remove the in-app alert and is recorded safely', async () => {
   failSend = true;
   const originalError = console.error;
   console.error = () => {};
@@ -106,7 +100,7 @@ test('timezone calendar keys avoid UTC day shifts', () => {
 test('a single newly missed ordinary task stays in-app only', async () => {
   const plan = await Plan.create({
     userId: user._id, title: 'Ordinary study plan', priority: 'medium',
-    startDate: new Date(Date.now() - 86400000), deadline: new Date(Date.now() + 10 * 86400000),
+    startDate: new Date(Date.now() - 3 * 86400000), deadline: new Date(Date.now() + 10 * 86400000),
     availableMinutesPerDay: 120
   });
   await Task.create({

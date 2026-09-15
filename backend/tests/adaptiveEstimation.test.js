@@ -10,6 +10,7 @@ const Plan = require('../models/Plan');
 const adaptive = require('../services/adaptiveEstimationService');
 const { focusMilliseconds } = require('../services/focusTimeService');
 const { scheduleTasks } = require('../services/schedulingService');
+const { formatDateKey } = require('../utils/dateUtils');
 const { rescuePlan } = require('../services/rescueService');
 const groq = require('../services/groqService');
 let mongo, app, user, plan;
@@ -129,7 +130,7 @@ test('EMA bounds, accuracy and calendar boundaries are deterministic', () => {
   assert.equal(adaptive.getAdaptiveEstimate({ learningPace: { sampleCount: 3, globalMultiplier: 0.1 } }, 60), 40);
   const start = new Date(2026, 8, 15), end = new Date(2026, 8, 17);
   const scheduled = scheduleTasks(Array.from({ length: 8 }, () => ({ estimatedMinutes: 45, adaptiveEstimatedMinutes: 60 })), start, end, 90);
-  assert.ok(scheduled.every(task => task.scheduledDate >= start && task.scheduledDate <= end));
+  assert.ok(scheduled.every(task => formatDateKey(task.scheduledDate) >= formatDateKey(start) && formatDateKey(task.scheduledDate) <= formatDateKey(end)));
 });
 test('Quick Adjust updates estimates explicitly and never pushes work beyond deadline', async () => {
   await User.updateOne({ _id: user._id }, { $set: { 'learningPace.globalMultiplier': 1.3, 'learningPace.sampleCount': 3 } });
