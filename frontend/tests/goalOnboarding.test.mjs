@@ -22,13 +22,31 @@ test('goals step keeps only core review fields and collapses advanced planning i
   assert.ok(!goalsStep.includes('Current progress (%)'));
   assert.ok(!goalsStep.includes('Estimated weekly minutes'));
 });
-test('review output is keyed to canonical planning inputs', () => {
-  assert.ok(source.includes('planningContextKeyFor'));
+test('review output is keyed to the complete canonical planning profile', () => {
+  assert.ok(source.includes('planningProfileFor'));
+  assert.ok(source.includes('maximumDailyMinutes: Number(draft.maximumDailyMinutes)'));
+  assert.ok(source.includes('preferredSessionMinutes: Number(draft.preferredSessionMinutes)'));
+  assert.ok(source.includes('utilizationPreference: draft.utilizationPreference'));
   assert.ok(source.includes('analysisContextKey: contextKey'));
   assert.ok(source.includes('requestId !== analysisRequestIdRef.current'));
   assert.ok(source.includes('storedPreview?.analysisContextKey'));
 });
-test('removed persisted goals are reconciled before recalculation', () => {
+test('review saves and previews the exact latest planning profile sequentially', () => {
+  assert.ok(source.includes('const latestPlanningProfile = planningProfileFor(draft)'));
+  const profileSave = source.indexOf('await API.patch("/goals/profile", latestPlanningProfile)');
+  const previewRequest = source.indexOf('planningProfile: latestPlanningProfile');
+  assert.ok(profileSave >= 0);
+  assert.ok(previewRequest > profileSave);
+});
+test('planning preference changes invalidate stale review results', () => {
+  assert.ok(source.includes('const updatePlanningPreference'));
+  assert.ok(source.includes('setPreview(null)'));
+  assert.ok(source.includes('updatePlanningPreference("maximumDailyMinutes", Number(e.target.value))'));
+  assert.ok(source.includes('updatePlanningPreference("preferredSessionMinutes", Number(e.target.value))'));
+  assert.ok(source.includes('updatePlanningPreference("preferredStudyPeriod", e.target.value)'));
+  assert.ok(source.includes('updatePlanningPreference("utilizationPreference", e.target.value)'));
+  assert.ok(source.includes('updatePlanningPreference("availability", availability)'));
+});test('removed persisted goals are reconciled before recalculation', () => {
   assert.ok(source.includes('removedGoalIds'));
   assert.ok(source.includes('removedGoalIds: []'));
 });
@@ -40,24 +58,27 @@ test('Goal edit PATCH sends only editable fields', async () => {
   assert.ok(!payload.includes('...form'));
   assert.ok(!payload.includes('milestones'));
 });
-test('review explains personalized allocations and surfaces planner validation', () => {
-  assert.ok(source.includes('Why this allocation:'));
+test('review explains requested and adjusted allocations with actionable validation', () => {
+  assert.ok(source.includes('Requested:'));
+  assert.ok(source.includes('strategy.adjusted ? "Adjusted" : "Allocated"'));
   assert.ok(source.includes('/week'));
   assert.ok(source.includes('Possible duplicate goals'));
-  assert.ok(source.includes('Planning validation'));
-  assert.ok(source.includes('s.priority'));
-  assert.ok(source.includes('s.horizon'));
+  assert.ok(source.includes('What works'));
+  assert.ok(source.includes('What needs adjustment'));
+  assert.ok(source.includes('strategy.priority'));
+  assert.ok(source.includes('strategy.horizon'));
 });
-test('normal review presents automatic optimization instead of a red feasibility dead end', () => {
-  assert.ok(source.includes('AI optimized your plan to fit your availability.'));
-  assert.ok(source.includes('preview.optimization?.message'));
-  assert.ok(source.includes('meaningful minimum plan for every active goal'));
-  assert.ok(!source.includes('Return to adjust goals or availability'));
+test('review renders authoritative final states without contradictory banners', () => {
+  assert.ok(source.includes('["FEASIBLE","ADJUSTED_FEASIBLE"].includes(preview?.status)'));
+  assert.ok(source.includes('preview?.wasAdjusted && preview?.status !== "NOT_FEASIBLE"'));
+  assert.ok(source.includes('Adjusted Plan &mdash; Feasible'));
+  assert.ok(source.includes('Even after adjusting flexible goals'));
+  assert.ok(source.includes('["NEEDS_REVIEW","ADJUSTED_FEASIBLE"].includes(preview.status)'));
+  assert.ok(!source.includes('meaningful minimum plan for every active goal'));
 });
-test('final validation uses explicit states and deferred-goal labels', () => {
-  assert.ok(source.includes('✓ Passed'));
-  assert.ok(source.includes('⚠ Adjusted during replanning'));
-  assert.ok(source.includes('✕ Could not satisfy'));
+test('review keeps deferred-goal labels and explicit recheck behavior', () => {
   assert.ok(source.includes('Deferred this week'));
-  assert.ok(!source.includes('check.passed ? "?" : "?"'));
+  assert.ok(source.includes('Plan needs recalculation'));
+  assert.ok(source.includes('Recheck Feasibility'));
+  assert.ok(source.includes('Your inputs changed. Recheck feasibility before building.'));
 });

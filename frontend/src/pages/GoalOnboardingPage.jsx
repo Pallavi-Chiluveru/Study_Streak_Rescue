@@ -119,6 +119,16 @@ const normalizeDraft = (saved, fallback = initialDraft()) => {
     goals: (value.goals || fallback.goals).map(cleanGoalDraft),
   };
 };
+const planningProfileFor = (draft) => ({
+  rawDirectionText: draft.rawDirectionText,
+  mainAim: draft.aiSummary || draft.rawDirectionText.slice(0, 2000),
+  weeklyAvailability: draft.availability.map(Number),
+  maximumDailyMinutes: Number(draft.maximumDailyMinutes),
+  preferredSessionMinutes: Number(draft.preferredSessionMinutes),
+  preferredStudyPeriod: draft.preferredStudyPeriod,
+  utilizationPreference: draft.utilizationPreference,
+  restDays: draft.restDays,
+});
 const planningContextKeyFor = (draft) =>
   JSON.stringify({
     rawDirectionText: draft.rawDirectionText,
@@ -508,16 +518,8 @@ export default function GoalOnboardingPage() {
     setStep(5);
     setBusy(true);
     try {
-      await API.patch("/goals/profile", {
-        rawDirectionText: draft.rawDirectionText,
-        mainAim: draft.aiSummary || draft.rawDirectionText.slice(0, 2000),
-        weeklyAvailability: draft.availability.map(Number),
-        maximumDailyMinutes: Number(draft.maximumDailyMinutes),
-        preferredSessionMinutes: Number(draft.preferredSessionMinutes),
-        preferredStudyPeriod: draft.preferredStudyPeriod,
-        utilizationPreference: draft.utilizationPreference,
-        restDays: draft.restDays,
-      });
+      const latestPlanningProfile = planningProfileFor(draft);
+      await API.patch("/goals/profile", latestPlanningProfile);
       for (const goalId of new Set(draft.removedGoalIds || []))
         await API.patch("/goals/" + goalId + "/status", { status: "archived" });
       const savedGoals = [];
@@ -556,7 +558,7 @@ export default function GoalOnboardingPage() {
           : await API.post("/goals", body);
         savedGoals.push(cleanGoalDraft({ ...g, ...response.data }));
       }
-      const p = (await API.post("/goals/schedule/preview", {})).data;
+      const p = (await API.post("/goals/schedule/preview", { planningProfile: latestPlanningProfile })).data;
       if (requestId !== analysisRequestIdRef.current) return;
       if (contextKey !== planningContextKeyRef.current) return;
       const taggedPreview = { ...p, analysisContextKey: contextKey };
@@ -585,7 +587,7 @@ export default function GoalOnboardingPage() {
     }
     setBusy(true);
     try {
-      if (currentPreview?.feasible)
+      if (currentPreview?.canApply)
         await API.post("/goals/schedule/" + preview.previewId + "/apply");
       const r = await API.patch("/goals/onboarding", {
         status: "completed",
@@ -603,6 +605,10 @@ export default function GoalOnboardingPage() {
     } finally {
       setBusy(false);
     }
+  };
+  const updatePlanningPreference = (key, value) => {
+    setPreview(null);
+    setDraft((current) => ({ ...current, [key]: value }));
   };
   const updateGoal = (i, k, v) =>
     setDraft((d) => ({
@@ -749,7 +755,7 @@ export default function GoalOnboardingPage() {
             </p>
             <WeeklyAvailabilityEditor
               value={draft.availability}
-              onChange={(availability) => setDraft({ ...draft, availability })}
+              onChange={(availability) => updatePlanningPreference("availability", availability)}
             />
           </div>
         )}
@@ -766,7 +772,7 @@ export default function GoalOnboardingPage() {
                   max="720"
                   value={draft.maximumDailyMinutes}
                   onChange={(e) =>
-                    setDraft({ ...draft, maximumDailyMinutes: e.target.value })
+                    updatePlanningPreference("maximumDailyMinutes", Number(e.target.value))
                   }
                   className="mt-1 w-full rounded-xl border p-3"
                 />
@@ -775,12 +781,7 @@ export default function GoalOnboardingPage() {
                 Session length
                 <select
                   value={draft.preferredSessionMinutes}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      preferredSessionMinutes: e.target.value,
-                    })
-                  }
+                  onChange={(e) => updatePlanningPreference("preferredSessionMinutes", Number(e.target.value))}
                   className="mt-1 w-full rounded-xl border p-3"
                 >
                   {[25, 45, 60, 90].map((x) => (
@@ -795,7 +796,7 @@ export default function GoalOnboardingPage() {
                 <select
                   value={draft.preferredStudyPeriod}
                   onChange={(e) =>
-                    setDraft({ ...draft, preferredStudyPeriod: e.target.value })
+                    updatePlanningPreference("preferredStudyPeriod", e.target.value)
                   }
                   className="mt-1 w-full rounded-xl border p-3"
                 >
@@ -816,12 +817,7 @@ export default function GoalOnboardingPage() {
                 Buffer
                 <select
                   value={draft.utilizationPreference}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      utilizationPreference: e.target.value,
-                    })
-                  }
+                  onChange={(e) => updatePlanningPreference("utilizationPreference", e.target.value)}
                   className="mt-1 w-full rounded-xl border p-3"
                 >
                   <option value="light">Light buffer (75%)</option>
@@ -834,68 +830,33 @@ export default function GoalOnboardingPage() {
         )}
         {step === 5 && (
           <div>
-            <p className="text-sm font-bold text-orange-600">
-              Review Your Plan
-            </p>
-            <h1 className="text-3xl font-black">
-              {preview?.reality ||
-                (busy ? "Updating your plan..." : "Plan needs recalculation")}
-            </h1>
+            <p className="text-sm font-bold text-orange-600">Review Your Plan</p>
+            <h1 className="text-3xl font-black">{preview?.reality || (busy ? "Updating your plan..." : "Plan needs recalculation")}</h1>
+            {preview?.status === "NEEDS_REVIEW" && <p className="mt-2 text-slate-600 dark:text-slate-300">You have enough total time, but some goal preferences need adjustment. The adjusted plan is safe to accept.</p>}
+            {preview?.status === "NOT_FEASIBLE" && <p className="mt-2 text-red-700 dark:text-red-300">The schedule violates a hard capacity, date, overlap, or daily-limit rule. Adjust the inputs before continuing.</p>}
+            {["FEASIBLE","ADJUSTED_FEASIBLE"].includes(preview?.status) && <p className="mt-2 text-emerald-700 dark:text-emerald-300">Your available time and goal preferences fit safely.</p>}
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                ["Capacity", preview?.availableMinutes],
-                ["Planned", preview?.plannedMinutes],
-                ["Buffer", preview?.bufferMinutes],
-                ["Shortage", preview?.shortageMinutes],
-              ].map(([l, v]) => (
-                <div
-                  className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800"
-                  key={l}
-                >
-                  <p className="text-sm text-slate-500">{l}</p>
-                  <strong className="text-xl">{formatDuration(v || 0)}</strong>
-                </div>
-              ))}
+              {[["Capacity",preview?.availableMinutes],["Planned",preview?.plannedMinutes],["Buffer",preview?.bufferMinutes],["Shortage",preview?.shortageMinutes]].map(([label,value])=><div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800" key={label}><p className="text-sm text-slate-500">{label}</p><strong className="text-xl">{formatDuration(value || 0)}</strong></div>)}
             </div>
-            {preview?.duplicates?.map((duplicate) => (
-              <div key={duplicate.goalIds.join("-")} className="mt-5 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                <strong>Possible duplicate goals</strong>
-                <p>{duplicate.titles.join(" and ")}</p>
-                <p>{duplicate.message} Go back and keep or merge one goal before building the schedule.</p>
-              </div>
-            ))}
-            {preview?.feasible && (
-              <div className="mt-5 rounded-xl bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
-                <strong>AI optimized your plan to fit your availability.</strong>
-                <p className="mt-1">{preview.optimization?.message}</p>
-              </div>
-            )}
-            {preview && !preview.feasible && preview.validation?.checks?.some((check) => check.key === "minimum_plan" && !check.passed) && (
-              <div className="mt-5 rounded-xl bg-red-50 p-4 text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                <strong>Your current constraints cannot accommodate a meaningful minimum plan for every active goal.</strong>
-                <ul className="mt-2 list-disc pl-5">{preview.recommendations?.map((recommendation) => <li key={recommendation}>{recommendation}</li>)}</ul>
-              </div>
-            )}
-            {preview?.strategies?.map((s) => (
-              <div key={s.goalId} className="mt-3 rounded-xl border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <strong className="block">{s.title}</strong>
-                    <span className="text-sm capitalize text-slate-500">{s.priority} priority · {s.horizon} term · {s.complexity}</span>
-                  </div>
-                  <strong>{s.deferred ? "Deferred this week" : <>{pluralize(s.sessions, "session")} · {formatDuration(s.minutes)}/week</>}</strong>
-                </div>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Why this allocation:</strong> {s.reason}</p>
-              </div>
-            ))}
-            {preview?.validation?.checks?.length > 0 && (
-              <div className="mt-5 rounded-xl border p-4">
-                <strong>Planning validation</strong>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {preview.validation.checks.map((check) => <li key={check.key}><strong>{check.status === "passed" ? "✓ Passed" : check.status === "adjusted" ? "⚠ Adjusted during replanning" : "✕ Could not satisfy"}</strong>: {check.message}</li>)}
-                </ul>
-              </div>
-            )}
+            {preview?.status === "NEEDS_REVIEW" && <div className="mt-5 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"><strong>Your total study time is sufficient, but some goal preferences cannot all be satisfied at the same time.</strong></div>}
+            {preview?.wasAdjusted && preview?.status !== "NOT_FEASIBLE" && <section className="mt-5 rounded-xl border border-orange-200 p-4 dark:border-orange-500/30"><strong>Adjusted Plan &mdash; Feasible</strong><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">We adjusted a few flexible preferences to create a realistic schedule. Your saved goal preferences were not changed.</p><ul className="mt-3 space-y-2 text-sm">{preview.adjustments?.map((change,index)=><li key={`${change.goalId || "portfolio"}-${change.field}-${index}`}><strong>{change.title || "Planning buffer"}:</strong> {change.before} → {change.after} <span className="text-slate-500">— {change.reason}</span></li>)}</ul></section>}
+            {preview?.status === "NOT_FEASIBLE" && <div className="mt-5 rounded-xl bg-red-50 p-4 text-red-700 dark:bg-red-500/10 dark:text-red-300"><strong>Even after adjusting flexible goals, the current workload still does not fit your available time.</strong><p className="mt-1">Remaining shortage: {formatDuration(preview.shortageMinutes || 0)}. Increase availability, extend a deadline, pause a flexible goal, or reduce scope.</p></div>}
+            {preview?.duplicates?.map((duplicate)=><div key={duplicate.goalIds.join("-")} className="mt-5 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"><strong>Possible duplicate goals</strong><p>{duplicate.titles.join(" and ")}</p><p>{duplicate.message}</p></div>)}
+            {preview?.strategies?.map((strategy)=>{
+              const allocatedSessions=strategy.allocatedSessions ?? strategy.sessions ?? 0;
+              const allocatedMinutes=strategy.allocatedMinutes ?? strategy.minutes ?? 0;
+              return <div key={strategy.goalId} className="mt-3 rounded-xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="block">{strategy.title}</strong><span className="text-sm capitalize text-slate-500">{strategy.priority} priority &middot; {strategy.horizon} term &middot; {strategy.complexity}</span></div><strong>{strategy.deferred ? "Deferred this week" : <>{pluralize(allocatedSessions,"session")} &middot; {formatDuration(allocatedMinutes)}/week</>}</strong></div>
+                <div className="mt-3 grid gap-1 text-sm sm:grid-cols-2"><p><strong>Requested:</strong> {pluralize(strategy.requestedSessions ?? allocatedSessions,"session")}/week &middot; {formatDuration(strategy.requestedMinutes ?? allocatedMinutes)}</p><p><strong>{strategy.adjusted ? "Adjusted" : "Allocated"}:</strong> {pluralize(allocatedSessions,"session")}/week &middot; {formatDuration(allocatedMinutes)}</p></div>
+                {!strategy.cadenceSatisfied && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300"><strong>Cadence:</strong> {strategy.cadenceReason}</p>}
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Reason:</strong> {strategy.adjustmentReason || strategy.reason}</p>
+              </div>;
+            })}
+            {preview?.validation && <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10"><strong className="text-emerald-800 dark:text-emerald-200">What works</strong><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{preview.validation.whatWorks?.map((message,index)=><li key={index}>{message}</li>)}</ul></section>
+              <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10"><strong className="text-amber-800 dark:text-amber-200">What needs adjustment</strong>{preview.validation.needsAdjustment?.length?<ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{preview.validation.needsAdjustment.map((message,index)=><li key={index}>{message}</li>)}</ul>:<p className="mt-2 text-sm">No adjustments are needed.</p>}</section>
+            </div>}
+            {preview?.status === "NEEDS_REVIEW" && <div className="mt-5 flex flex-wrap gap-2"><ElectricButton variant="secondary" onClick={()=>persist(1)}>Edit Goals</ElectricButton><ElectricButton variant="secondary" onClick={()=>persist(1)}>Adjust Frequencies</ElectricButton><ElectricButton variant="secondary" onClick={()=>persist(2)}>Change Availability</ElectricButton><ElectricButton variant="secondary" onClick={()=>{setPreview(null);persist(4);}}>Restore Original Preferences</ElectricButton></div>}
           </div>
         )}
         {step > 0 && (
@@ -928,10 +889,10 @@ export default function GoalOnboardingPage() {
             ) : (
               <ElectricButton
                 icon={CheckCircle2}
-                disabled={busy || (preview ? !preview.feasible : false)}
+                disabled={busy || (preview ? !preview.canApply : false)}
                 onClick={preview ? apply : saveAndReview}
               >
-                {preview ? "Build My Schedule" : "Recheck Feasibility"}
+                {preview ? (["NEEDS_REVIEW","ADJUSTED_FEASIBLE"].includes(preview.status) ? "Accept Adjusted Plan" : "Build My Schedule") : "Recheck Feasibility"}
               </ElectricButton>
             )}
           </footer>

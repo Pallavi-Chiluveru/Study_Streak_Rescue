@@ -71,8 +71,8 @@ const DashboardPage = () => {
 
   const handleOpenTimer = async (task) => {
     try {
-      await API.patch(`/tasks/${task._id}/start`);
-      setTimerTask({ ...task, status: 'active' });
+      const response = await API.patch(`/tasks/${task._id}/start`);
+      setTimerTask(response.data);
     } catch (error) {
       addToast(error.response?.data?.message || 'Unable to start this focus session', 'error');
     }

@@ -10,7 +10,9 @@ const adaptive = require('./adaptiveEstimationService');
 const { scheduleMasterTasks } = require('./schedulingService');
 const groq = require('./groqService');
 const { goalHealth } = require('./goalPriorityService');
-const { findSemanticDuplicates, planGoalAllocations, validatePlanning, explainAllocations } = require('./goalAllocationService');
+const { findSemanticDuplicates, validatePlanning, explainAllocations } = require('./goalAllocationService');
+const { validateProfile } = require('./goalValidation');
+const { optimizePortfolio } = require('./portfolioOptimizationService');
 const fail = (message,status=409) => { throw Object.assign(new Error(message),{status}); };
 const snapshot = async userId => {
  const [user,goals,tasks,plans]=await Promise.all([User.findById(userId),Goal.find({userId}).sort({_id:1}),Task.find({userId}).sort({_id:1}),Plan.find({userId}).sort({_id:1})]);
@@ -36,7 +38,8 @@ const summarize = state => state.goals.map(goal => {
   weeklyFocusMinutes:week.reduce((s,t)=>s+(t.actualFocusMinutes||0),0)};
 });
 const buildPreview = async (userId, options={}) => {
- const state=await snapshot(userId), profile=state.user.planningProfile.toObject();
+ const state=await snapshot(userId), storedProfile=state.user.planningProfile.toObject();
+ const profile=options.planningProfile?validateProfile(options.planningProfile,storedProfile):storedProfile;
  if (state.user.planningProfile.applyingPreviewId) fail('A schedule update is in progress. Please retry.');
  const start=options.start ? require('./goalValidation').date(options.start,'week start') : dates.getStartOfDay(new Date());
  if (!start || start<dates.getStartOfDay(new Date()) || start>dates.addCalendarDays(new Date(),14)) fail('Choose a start date within the next two weeks.',400);
@@ -54,7 +57,8 @@ const buildPreview = async (userId, options={}) => {
  const legalDaysByGoal=new Map(active.map(goal=>[String(goal._id),cadenceDays(goal,legalDays(goal,start,end))]));
  const duplicates=targetPlan ? [] : findSemanticDuplicates(active);
  const completedMinutesByGoal=new Map(active.map(goal=>[String(goal._id),state.tasks.filter(task=>String(task.goalId)===String(goal._id)&&task.status==='completed').reduce((sum,task)=>sum+adaptive.baseEstimate(task),0)]));
- const allocationPlan=planGoalAllocations({goals:active,profile,start,end,legalDaysByGoal,protectedTasks,completedMinutesByGoal});
+ const optimizationRun=optimizePortfolio({goals:active,profile,start,end,legalDaysByGoal,protectedTasks,completedMinutesByGoal});
+ const allocationPlan=optimizationRun.plan, schedulingProfile=optimizationRun.effectiveProfile;
  const allocationByGoal=new Map(allocationPlan.allocations.map(item=>[item.goalId,item]));
  for (const goal of active) {
   const goalId=String(goal._id), allocation=allocationByGoal.get(goalId), days=legalDaysByGoal.get(goalId), count=allocation.sessions;
@@ -86,7 +90,7 @@ const buildPreview = async (userId, options={}) => {
   strategies.push({goalId,title:goal.title,category:goal.category,priority:goal.priority,horizon:goal.horizon,complexity:allocation.complexity,urgency:allocation.urgency.label,weight:Number(allocation.weight.toFixed(2)),requiredSessions:count,sessions:content.length,minutes:target,before:existing.length,provider,reason:allocation.reason,workTypes:allocation.workTypes});
  }
  if(jobs.length>500) fail('This portfolio has too much unfinished work for one preview. Pause goals or narrow the review.',400);
- const result=scheduleMasterTasks({jobs,protectedTasks,profile,start,end,todayMinutes:options.todayMinutes});
+ const result=scheduleMasterTasks({jobs,protectedTasks,profile:schedulingProfile,start,end,todayMinutes:options.todayMinutes});
  for (const strategy of strategies) { const scheduled=result.tasks.filter(t=>String(t.goalId)===strategy.goalId);strategy.after=scheduled.length;strategy.sessions=scheduled.length;strategy.minutes=scheduled.reduce((sum,task)=>sum+adaptive.getEffectiveEstimatedMinutes(task),0); }
  if(result.unscheduled.length && !result.conflicts.length) {
   const minimumsStillFit=allocationPlan.allocations.every(item=>item.deferred||result.tasks.filter(task=>String(task.goalId)===item.goalId).length>=item.minimumSessions);
@@ -99,14 +103,31 @@ const buildPreview = async (userId, options={}) => {
   }
  }
  explainAllocations(allocationPlan.allocations);
- for(const strategy of strategies){const allocation=allocationByGoal.get(strategy.goalId);strategy.reason=allocation.reason;strategy.deferred=Boolean(allocation.deferred);strategy.sessionMinutes=allocation.sessionMinutes;}
- const validation=validatePlanning({...allocationPlan,duplicates,result,profile});
- if(!validation.passed) {result.feasible=false;result.reality='Needs Review';}
+ for(const strategy of strategies){
+  const allocation=allocationByGoal.get(strategy.goalId);
+  Object.assign(strategy,{reason:allocation.reason,deferred:Boolean(allocation.deferred),sessionMinutes:allocation.sessionMinutes,requestedCadence:allocation.requestedCadence,requestedSessions:allocation.requestedSessions,requestedMinutes:allocation.requestedMinutes,allocatedSessions:allocation.allocatedSessions,allocatedMinutes:allocation.allocatedMinutes,actualSessionsPerWeek:allocation.actualSessionsPerWeek,cadenceSatisfied:allocation.cadenceSatisfied,cadenceReason:allocation.cadenceReason,adjusted:allocation.adjusted,adjustmentReason:allocation.adjustmentReason});
+}
+ const validation=validatePlanning({...allocationPlan,duplicates,result,profile:schedulingProfile});
  for(const duplicate of duplicates) warnings.push(`${duplicate.titles.join(' and ')}: ${duplicate.message}`);
- // A requested commitment with no legal dates is not silently considered feasible.
- if(warnings.some(w=>w.includes('no legal study days'))) {result.feasible=false;result.reality='Not Feasible';}
- const recommendations=validation.checks.find(check=>check.key==='minimum_plan'&&!check.passed)?['Focus on the urgent/high-priority goals and postpone one optional goal','Increase weekly availability enough to fit each minimum session','Reduce one goal priority or choose a later deadline']:[];
- const data={...result,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,duplicates,validation,recommendations,optimization:{optimized:allocationPlan.reductions.length>0,message:allocationPlan.optimizationMessage,desiredMinutes:allocationPlan.originalDesiredMinutes,plannedMinutes:result.plannedMinutes},allocation:{totalCapacityMinutes:allocationPlan.totalCapacity,totalPlannableMinutes:allocationPlan.totalPlannableMinutes,protectedMinutes:allocationPlan.protectedMinutes},selectedIds:[...selectedIds],
+ // Missing legal dates is a hard failure even when aggregate capacity is sufficient.
+ if(warnings.some(w=>w.includes('no legal study days'))) {
+  validation.hardConstraintsSatisfied=false;validation.canApply=false;validation.status='NOT_FEASIBLE';
+  validation.needsAdjustment.push('At least one goal has no valid study day before its deadline.');
+ }
+ if(optimizationRun.bufferAdjusted){
+  const message='Buffer reduced from 15% to 10% for this preview only.';
+  validation.checks.push({key:'buffer_adjustment',kind:'soft',passed:false,status:'needs_adjustment',message});
+  validation.softConstraintsSatisfied=false;validation.passed=false;validation.status='NEEDS_REVIEW';validation.needsAdjustment.push(message);
+ }
+ let status=validation.status;
+ if(status==='FEASIBLE'&&optimizationRun.status==='ADJUSTED_FEASIBLE')status='ADJUSTED_FEASIBLE';
+ result.feasible=status!=='NOT_FEASIBLE';result.canApply=validation.canApply;result.status=status;
+ result.reality=status==='NEEDS_REVIEW'?'Needs Review':status==='NOT_FEASIBLE'?'Not Feasible':status==='ADJUSTED_FEASIBLE'?'Adjusted Plan - Feasible':'Feasible';
+ const recommendations=validation.needsAdjustment;
+ const utilizationPercent=schedulingProfile.optimizationUtilization?Math.round(schedulingProfile.optimizationUtilization*100):profile.utilizationPreference==='light'?75:profile.utilizationPreference==='maximum'?100:85;
+ const preferencesUsed={maximumDailyMinutes:profile.maximumDailyMinutes,sessionLengthMinutes:profile.preferredSessionMinutes,preferredStudyTime:profile.preferredStudyPeriod,utilizationPercent};
+ console.info('[Review] planning result',{maximumDailyMinutes:preferencesUsed.maximumDailyMinutes,saturdayAvailable:profile.weeklyAvailability?.[5]||0,saturdayCapped:Math.min(profile.weeklyAvailability?.[5]||0,profile.maximumDailyMinutes),sundayAvailable:profile.weeklyAvailability?.[6]||0,sundayCapped:Math.min(profile.weeklyAvailability?.[6]||0,profile.maximumDailyMinutes),finalCapacity:result.capacityMinutes,finalStatus:status});
+ const data={...result,status,canApply:validation.canApply,preferencesUsed,start:dates.formatDateString(start),end:dates.formatDateString(end),strategies,warnings,duplicates,validation,recommendations,optimization:{status:optimizationRun.status,optimized:optimizationRun.wasAdjusted,message:allocationPlan.optimizationMessage,desiredMinutes:allocationPlan.originalDesiredMinutes,plannedMinutes:result.plannedMinutes,passes:optimizationRun.passes,maxPasses:optimizationRun.maxPasses,bufferAdjusted:optimizationRun.bufferAdjusted,originalBufferPercent:optimizationRun.originalBufferPercent,effectiveBufferPercent:optimizationRun.effectiveBufferPercent,adjustments:optimizationRun.adjustments},wasAdjusted:optimizationRun.wasAdjusted,adjustments:optimizationRun.adjustments,allocation:{totalCapacityMinutes:allocationPlan.totalCapacity,totalPlannableMinutes:allocationPlan.totalPlannableMinutes,protectedMinutes:allocationPlan.protectedMinutes},selectedIds:[...selectedIds],
   movedCount:result.tasks.filter(t=>t._id && dates.formatDateString(state.tasks.find(old=>String(old._id)===t._id).scheduledDate)!==dates.formatDateString(t.scheduledDate)).length,
   tradeOffs:['Reduce flexible weekly commitments','Lower goal frequency','Extend a deadline','Pause a goal','Increase availability'],deadlineChanges:0,targetPlanId:targetPlan ? String(targetPlan._id):null};
  const preview=await Preview.create({userId,fingerprint:fingerprint(state),data});
@@ -127,7 +148,7 @@ const applyPreview = async (userId,previewId) => {
  if(!mongoose.isValidObjectId(previewId)) fail('Invalid preview.',400);
  const preview=await Preview.findOne({_id:previewId,userId});
  if(!preview || preview.appliedAt || preview.expiresAt<new Date()) fail('This preview expired or was already applied. Build a fresh preview.');
- if(!preview.data.feasible) fail('Resolve the capacity or cadence conflicts before applying.');
+ if(!preview.data.canApply) fail('Resolve the hard scheduling conflicts before applying.');
  const state=await snapshot(userId);
  if(fingerprint(state)!==preview.fingerprint) fail('Your goals, focus progress or availability changed. Build a fresh preview.');
  const changes=preview.data.tasks, oldTasks=state.tasks.filter(t=>preview.data.selectedIds.includes(String(t._id)));

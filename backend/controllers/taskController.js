@@ -118,17 +118,22 @@ const startTaskEarly = async (req, res, next) => {
 // Pause also checkpoints the timer when closing; repeat calls do not add time.
 const pauseTask = async (req, res, next) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    let task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
     if (!task) return res.status(404).json({ message: 'Task not found' });
     if (task.status === 'completed') return res.status(409).json({ message: 'Task is already completed' });
     if (!task.focusRunningSince) return res.json(task);
-    const updated = await Task.findOneAndUpdate({ _id: task._id, userId: req.user._id, status: { $ne: 'completed' }, updatedAt: task.updatedAt },
-      { $set: { focusAccumulatedMs: focusMilliseconds(task), focusRunningSince: null } }, { returnDocument: 'after' });
-    if (!updated) return res.status(409).json({ message: 'Timer changed. Refresh and try again.' });
-    res.json(updated);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const updated = await Task.findOneAndUpdate({ _id: task._id, userId: req.user._id, status: { $ne: 'completed' }, updatedAt: task.updatedAt, focusRunningSince: task.focusRunningSince },
+        { $set: { focusAccumulatedMs: focusMilliseconds(task), focusRunningSince: null, focusHeartbeatAt: null } }, { returnDocument: 'after' });
+      if (updated) return res.json(updated);
+      task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+      if (!task) return res.status(404).json({ message: 'Task not found' });
+      if (task.status === 'completed') return res.status(409).json({ message: 'Task is already completed' });
+      if (!task.focusRunningSince) return res.json(task);
+    }
+    return res.status(409).json({ message: 'Timer changed. Please retry.' });
   } catch (error) { next(error); }
 };
-
 const heartbeatTask = async (req, res, next) => {
   try {
     const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });

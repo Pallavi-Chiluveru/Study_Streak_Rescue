@@ -248,10 +248,11 @@ test('fresh account can persist onboarding, create goals, preview and apply one 
   assert.equal(patched.status, 200);
   assert.equal(patched.body.title, 'Updated short goal');
   assert.notEqual(patched.body.__v, 999);
-  const preview = await request(app).post('/api/goals/schedule/preview').set('Authorization', auth).send({});
+  const preview = await request(app).post('/api/goals/schedule/preview').set('Authorization', auth).send({ planningProfile: { maximumDailyMinutes: 160, preferredSessionMinutes: 60, preferredStudyPeriod: 'none', utilizationPreference: 'balanced', weeklyAvailability: [120,120,120,120,120,180,180], restDays: [] } });
   assert.equal(preview.status, 200);
   assert.equal(preview.body.feasible, true, JSON.stringify({validation:preview.body.validation,unscheduled:preview.body.unscheduled,conflicts:preview.body.conflicts,strategies:preview.body.strategies}));
   assert.equal(preview.body.strategies.length, 3);
+  assert.deepEqual(preview.body.preferencesUsed, { maximumDailyMinutes: 160, sessionLengthMinutes: 60, preferredStudyTime: 'none', utilizationPercent: 85 });
   const applied = await request(app).post('/api/goals/schedule/'+preview.body.previewId+'/apply').set('Authorization', auth).send({});
   assert.equal(applied.status, 200);
   const me = await request(app).get('/api/auth/me').set('Authorization', auth);

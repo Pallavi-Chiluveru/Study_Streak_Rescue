@@ -121,7 +121,11 @@ For local development, use `http://localhost:5000/api` instead.
 
 ### Production deployment
 
-For Render, set the backend service root directory to `backend`, use `npm install` as the build command, and `npm start` as the start command. Add `GROQ_API_KEY`, `GROQ_MODEL`, `MONGODB_URI`, `JWT_SECRET`, and `CLIENT_URL` in the Render environment. `CLIENT_URL` must be the exact deployed frontend origin, for example `https://your-app.vercel.app`. For multiple allowed origins, use the backward-compatible `CLIENT_URLS` variable with comma-separated origins.
+For Render, set the backend service root directory to `backend`, use `npm install` as the build command, and `npm start` as the start command. Add `GROQ_API_KEY`, `GROQ_MODEL`, `MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SECURE`, `EMAIL_USER`, `EMAIL_PASS`, and `EMAIL_FROM` in the **Render backend** environment. SMTP secrets do not belong in Vercel or any `VITE_*` variable. For Gmail STARTTLS, use `smtp.gmail.com`, port `587`, `EMAIL_SECURE=false`, and a newly generated Google App Password. Set `EMAIL_FROM` without literal surrounding quotes, for example `Study Streak Rescue <sender@example.com>`.
+
+`CLIENT_URL` must be the exact deployed HTTPS frontend origin, for example `https://your-app.vercel.app`; do not use localhost in production. For multiple allowed origins, use the backward-compatible `CLIENT_URLS` variable with comma-separated origins. After changing any environment value, save it and restart or redeploy the Render backend. A healthy SMTP startup logs `Email service ready`; authentication and connection failures are logged without credentials and do not stop the rest of the API.
+
+During local development, the backend automatically permits Vite at `http://localhost:5173` and `http://127.0.0.1:5173`, even if `CLIENT_URL` points to the deployed frontend. Restart the backend after changing `.env` values.
 
 For Vercel, set the frontend root directory to `frontend` and add `VITE_API_URL=https://study-streak-rescue.onrender.com/api`. Rebuild and redeploy the frontend after changing this variable because Vite embeds it at build time.
 

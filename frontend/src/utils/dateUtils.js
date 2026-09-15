@@ -60,7 +60,7 @@ export const isDateBeforeToday = (value, reference = new Date()) => {
 };
 
 export const isTaskMissed = (task, reference = new Date()) => (
-  task?.status === 'missed' || (task?.status === 'pending' && isDateBeforeToday(task.scheduledDate, reference))
+  task?.status === 'missed' || (task?.status !== 'completed' && isDateBeforeToday(task?.scheduledDate, reference))
 );
 
 export const groupTasksByScheduledDate = (tasks = []) => {

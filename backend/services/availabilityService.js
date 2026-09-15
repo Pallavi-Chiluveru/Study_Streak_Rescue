@@ -8,7 +8,7 @@ const capacityDays = (profile, start, end, todayMinutes) => getDateRange(start,e
  const free = spans.reduce((sum,[a,b]) => sum+b-a,0);
  const isToday = formatDateString(date) === formatDateString(new Date());
  const available = (profile.restDays || []).includes(day) ? 0 : Math.min(profile.weeklyAvailability?.[index] ?? 0,profile.maximumDailyMinutes || 180,free,isToday && todayMinutes !== undefined ? todayMinutes : Infinity);
- return { date: getStartOfDay(date), key: formatDateString(date), available, capacity: Math.floor(available*(utilization[profile.utilizationPreference] || 0.85)), used: 0, spans, sessions: [] };
+ return { date: getStartOfDay(date), key: formatDateString(date), available, capacity: Math.floor(available*(Number.isFinite(profile.optimizationUtilization) ? Math.min(0.9,Math.max(0.5,profile.optimizationUtilization)) : utilization[profile.utilizationPreference] || 0.85)), used: 0, spans, sessions: [] };
 });
 const takeSlot = (day, minutes, period = 'none') => {
  if (day.used + minutes > day.capacity) return null;

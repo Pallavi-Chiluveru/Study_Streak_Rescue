@@ -72,8 +72,9 @@ test('replanning defers a lower-priority non-urgent goal before sacrificing an e
  assert.ok(plan.allocations.find(item=>item.goalId==='placement').sessions>=3);
  assert.match(plan.allocations.find(item=>item.goalId==='manual').reason,/Deferred for this week/);
  const validation=validatePlanning({...plan,duplicates:[],profile:constrained,result:{plannedMinutes:plan.plannedAllocationMinutes,days:[]}});
- assert.equal(validation.passed,true);
- assert.ok(validation.checks.some(check=>check.status==='adjusted'));
+ assert.equal(validation.status,'NEEDS_REVIEW');
+ assert.equal(validation.canApply,true);
+ assert.ok(validation.checks.some(check=>check.status==='needs_adjustment'));
 });
 
 test('an urgent essential deadline fails final validation when remaining work cannot fit',()=>{
@@ -91,4 +92,18 @@ test('rounding does not leave differently weighted AI goals generically identica
  assert.ok(a.sessions!==b.sessions||a.minutes!==b.minutes||a.identicalJustified);
  const validation=validatePlanning({...plan,duplicates:[],profile,result:{plannedMinutes:plan.plannedAllocationMinutes,days:[]}});
  assert.notEqual(validation.checks.find(check=>check.key==='personalized_allocations').status,'failed');
+});
+test('daily cadence reduction is a reviewable soft conflict with consistent final arithmetic',()=>{
+ const constrained={...profile,weeklyAvailability:[30,30,30,30,30,30,30],maximumDailyMinutes:30};
+ const daily=goal('daily',{title:'Daily DSA',category:'Coding / DSA',priority:'medium',cadence:{type:'daily',timesPerWeek:7}});
+ const plan=planGoalAllocations({goals:[daily],profile:constrained,start,end,legalDaysByGoal:new Map([['daily',dates.getDateRange(start,end)]])});
+ const item=plan.allocations[0];
+ assert.equal(item.requestedSessions,7);
+ assert.equal(item.allocatedMinutes,item.allocatedSessions*item.sessionMinutes);
+ assert.equal(item.cadenceSatisfied,false);
+ const validation=validatePlanning({...plan,duplicates:[],profile:constrained,result:{plannedMinutes:item.allocatedMinutes,shortageMinutes:0,unscheduled:[],conflicts:[],days:[]}});
+ assert.equal(validation.status,'NEEDS_REVIEW');
+ assert.equal(validation.hardConstraintsSatisfied,true);
+ assert.equal(validation.canApply,true);
+ assert.match(validation.cadenceFailures[0].reason,/Daily DSA/);
 });

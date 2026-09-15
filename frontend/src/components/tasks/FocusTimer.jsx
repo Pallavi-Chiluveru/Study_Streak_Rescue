@@ -14,6 +14,17 @@ const FocusTimer = ({ task, isOpen, onClose, onCompleteTask }) => {
   const [error, setError] = useState('');
   useEffect(() => {
     if (!isOpen || !task) return;
+    const accumulated = task.focusAccumulatedMs || 0;
+    clock.current = {
+      accumulated,
+      since: task.focusRunningSince ? performance.now() : null
+    };
+    setElapsed(accumulated / 1000);
+    setIsActive(!!task.focusRunningSince);
+    setError('');
+  }, [isOpen, task?._id]);
+  useEffect(() => {
+    if (!isOpen || !task) return;
     if (task.focusRunningSince && clock.current.since === null) clock.current.since = performance.now();
     const tick = () => setElapsed(elapsedFocusMs(clock.current, performance.now()) / 1000);
     const interval = setInterval(tick, 250);

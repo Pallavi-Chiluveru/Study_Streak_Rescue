@@ -16,10 +16,14 @@ connectDB();
 const app = express();
 
 // Middleware
-const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
+const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
   .split(',')
   .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
+const developmentOrigins = process.env.NODE_ENV === 'production'
+  ? []
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const allowedOrigins = [...new Set([...configuredOrigins, ...developmentOrigins])];
 
 app.use(cors({
   origin: allowedOrigins.length === 0

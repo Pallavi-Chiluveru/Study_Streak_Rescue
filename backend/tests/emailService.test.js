@@ -34,6 +34,14 @@ test('STARTTLS configuration and one reusable transporter for verification and s
   assert.deepEqual(logs, ['Email service ready']);
   assert.ok(messages.every(message => message.to === process.env.EMAIL_USER && message.from === process.env.EMAIL_FROM));
 });
+test('normalizes a spaced Google App Password and quoted sender value', async () => {
+  process.env.EMAIL_PASS = 'abcd efgh ijkl mnop';
+  process.env.EMAIL_FROM = '"Study Streak <sender@example.test>"';
+  await service.initializeEmailService();
+  await service.sendPasswordChangeEmail('registered@example.test', 'a'.repeat(64));
+  assert.equal(options.auth.pass, 'abcdefghijklmnop');
+  assert.equal(messages[0].from, 'Study Streak <sender@example.test>');
+});
 test('implicit TLS uses secure true on port 465', async () => {
   process.env.EMAIL_PORT = '465'; process.env.EMAIL_SECURE = 'true';
   assert.equal(await service.initializeEmailService(), true);
@@ -42,14 +50,30 @@ test('implicit TLS uses secure true on port 465', async () => {
 test('missing settings and inconsistent TLS fail safely without crashing startup', async () => {
   delete process.env.EMAIL_PASS;
   assert.equal(await service.initializeEmailService(), false);
-  assert.deepEqual(logs, ['Email service configuration is incomplete.']);
+  assert.deepEqual(logs, ['Email configuration incomplete']);
   process.env.EMAIL_PASS = 'synthetic-test-only'; process.env.EMAIL_SECURE = 'true';
-  assert.throws(() => service.validateEmailConfiguration(), /configuration is incomplete/);
+  assert.throws(() => service.validateEmailConfiguration(), /configuration incomplete/);
 });
 test('provider verification failure only logs a safe readiness message', async () => {
   rejectVerification = true;
   assert.equal(await service.initializeEmailService(), false);
   assert.deepEqual(logs, ['Email service unavailable']);
+});
+test('production startup verifies SMTP and classifies Gmail authentication safely', async () => {
+  process.env.NODE_ENV = 'production';
+  nodemailer.createTransport = config => ({
+    verify: async () => {
+      const error = new Error('provider rejected credentials');
+      error.code = 'EAUTH';
+      error.responseCode = 535;
+      throw error;
+    }
+  });
+  delete require.cache[require.resolve('../services/emailService')];
+  service = require('../services/emailService');
+  assert.equal(await service.initializeEmailService(), false);
+  assert.deepEqual(logs, ['Gmail authentication failed. Check EMAIL_USER and App Password.']);
+  assert.ok(!logs.join(' ').includes(process.env.EMAIL_PASS));
 });
 test('reset link uses configured frontend origin and required email branding', async () => {
   const token = 'a'.repeat(64);
@@ -63,7 +87,7 @@ test('reset link uses configured frontend origin and required email branding', a
 });
 test('production rejects HTTP frontend and development test mail', async () => {
   process.env.NODE_ENV = 'production'; process.env.CLIENT_URL = 'http://study.example.test';
-  assert.throws(() => service.validateEmailConfiguration(), /configuration is incomplete/);
+  assert.throws(() => service.validateEmailConfiguration(), /configuration incomplete/);
   await assert.rejects(service.sendTestEmail(), /development-only/);
 });
 test('SMTP refusal is not reported as a sent message', async () => {
