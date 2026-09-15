@@ -15,6 +15,12 @@ connectDB();
 
 const app = express();
 
+// Render terminates public HTTPS and forwards requests through one proxy hop.
+// Trust only that hop so IP-based rate limiting uses the originating client IP.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || '')
   .split(',')
